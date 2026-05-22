@@ -278,6 +278,31 @@ tr.my-row{background:#fffde6;}
 // 状態管理
 // ============================================================
 var GAS_URL = 'https://script.google.com/a/macros/kanoiwa-hospital.info/s/AKfycbzvwMqdTzRAAHJ5e_QyTGSZfiBc69Qi0yZV7A8Y7cV4UKbpPUr-PwTlgu8mO1ax_oGa/exec';
+
+// GAS APIをJSONPで呼ぶ（CORS回避）
+function callGasGet(action, callback) {
+  var cbName = 'cb_' + Date.now();
+  var script = document.createElement('script');
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.body.removeChild(script);
+    callback(data);
+  };
+  script.src = GAS_URL + '?action=' + action + '&callback=' + cbName;
+  script.onerror = function() { callback(null); };
+  document.body.appendChild(script);
+}
+
+function callGasPost(action, data, callback) {
+  // POSTはfetchで試みる（失敗時はフォールバック）
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: action, data: data })
+  })
+  .then(function(r) { return r.json(); })
+  .then(callback)
+  .catch(function() { callback({ success: false, message: '通信エラー' }); });
+}
 var cfg = { overrideOpen: null, openHour: 8, closeHour: 10 };
 var totalCount = 1;
 var currentPerson = 0;
@@ -317,10 +342,11 @@ window.onload = function() {
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
   // 設定読み込み＆リスト読み込み
-  fetch(GAS_URL + '?action=getReceptionConfig')
-    .then(function(r) { return r.json(); })
-    .then(function(c) { cfg = c; checkOpen(); loadList(); })
-    .catch(function() { checkOpen(); loadList(); });
+  callGasGet('getReceptionConfig', function(c) {
+    if (c) cfg = c;
+    checkOpen();
+    loadList();
+  });
 
   setInterval(function() {
     if (currentStep !== 3) loadList();
@@ -457,13 +483,7 @@ function doStep1() {
   btn.disabled = true; btn.textContent = '送信中...';
 
   var kana = sei + ' ' + mei;
-  fetch(GAS_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ action: 'submitStep1', data: { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone } })
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
+  callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
       if (res.success) {
         persons[currentPerson].pid = pid;
         persons[currentPerson].kana = kana;
@@ -491,11 +511,7 @@ function doStep1() {
         btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
       }
     })
-    .catch(function() {
-      alert('通信エラーが発生しました。');
-      btn.disabled = false;
-      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
-    });
+  });
 }
 
 // ============================================================
@@ -585,13 +601,7 @@ function doStep2() {
     allergy: document.getElementById('m-allergy').value || ''
   };
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ action: 'submitStep2', data: data })
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
+  callGasPost('submitStep2', data, function(res) {
       if (res.success) {
         persons[currentPerson].postcode = data.postcode;
         persons[currentPerson].address  = data.address;
@@ -611,11 +621,7 @@ function doStep2() {
           ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
       }
     })
-    .catch(function() {
-      alert('通信エラーが発生しました。');
-      btn.disabled = false;
-      btn.textContent = '問診票を送信する →';
-    });
+  });
 }
 
 // ============================================================
@@ -652,9 +658,12 @@ function goToMonshin(webId, pid) {
 function loadList() {
   var el = document.getElementById('list-content');
   el.innerHTML = '<div class="loading">読み込み中...</div>';
-  fetch(GAS_URL + '?action=getWaitingList')
-    .then(function(r) { return r.json(); })
-    .then(function(list) {
+  callGasGet('getWaitingList', function(list) {
+    if (!list) {
+      document.getElementById('list-content').innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px">読み込みに失敗しました。</p>';
+      return;
+    }
+    (function(list) {
       if (!list || list.length === 0) {
         el.innerHTML = '<p style="color:#888;text-align:center;padding:20px">本日の受付はまだありません。</p>';
         return;
@@ -689,9 +698,8 @@ function loadList() {
         }
       });
     })
-    .catch(function() {
-      document.getElementById('list-content').innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px">読み込みに失敗しました。</p>';
-    });
+    })(list);
+  });
 }
 
 // ============================================================
@@ -720,13 +728,7 @@ function submitCancel() {
   var btn = document.getElementById('btn-cancel');
   btn.disabled = true; btn.textContent = '処理中...';
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ action: 'submitCancel', data: { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone } })
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
+  callGasPost('submitCancel', { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone }, function(res) {
       hide('cancel-form');
       show('cancel-result');
       if (res.found) {
@@ -742,10 +744,7 @@ function submitCancel() {
       }
       loadList();
     })
-    .catch(function() {
-      alert('通信エラーが発生しました。スタッフにお電話ください。\nTEL：0553-22-2511');
-      btn.disabled = false; btn.textContent = '取消を申請する';
-    });
+  });
 }
 </script>
 </body>
