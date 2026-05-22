@@ -315,13 +315,12 @@ window.onload = function() {
   document.getElementById('c-type').addEventListener('change', onCancelTypeChange);
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
-  // 設定読み込み
+  // 設定読み込み＆リスト読み込み
   google.script.run
-    .withSuccessHandler(function(c) { cfg = c; checkOpen(); })
-    .withFailureHandler(function() { checkOpen(); })
+    .withSuccessHandler(function(c) { cfg = c; checkOpen(); loadList(); })
+    .withFailureHandler(function() { checkOpen(); loadList(); })
     .getReceptionConfig();
 
-  loadList();
   setInterval(function() {
     if (currentStep !== 3) loadList();
   }, 600000);
