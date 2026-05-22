@@ -230,7 +230,7 @@ tr.my-row{background:#fffde6;}
     <h2>📋 本日の受付状況</h2>
     <div class="list-meta">
       <span>目安時間は9時以降に更新されます</span>
-      <button class="refresh-btn" id="btn-refresh-list">🔄 10分毎に自動更新</button>
+      <button class="refresh-btn" id="btn-refresh-list">🔄 更新</button>
     </div>
     <div id="list-content"><div class="loading">読み込み中...</div></div>
   </div>
@@ -642,9 +642,10 @@ function goToMonshin(webId, pid) {
 // 順番リスト
 // ============================================================
 function loadList() {
+  var el = document.getElementById('list-content');
+  el.innerHTML = '<div class="loading">読み込み中...</div>';
   google.script.run
     .withSuccessHandler(function(list) {
-      var el = document.getElementById('list-content');
       if (!list || list.length === 0) {
         el.innerHTML = '<p style="color:#888;text-align:center;padding:20px">本日の受付はまだありません。</p>';
         return;
