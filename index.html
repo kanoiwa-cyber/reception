@@ -110,7 +110,7 @@ tr.my-row{background:#fffde6;}
       <div class="closed-box">本日は受付対象外の曜日です。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">このシステムは火曜日午前（8:00〜10:00）のみご利用いただけます。</span></div>
     </div>
 
-    <div id="screen-count">
+    <div id="screen-count" class="hidden">
       <div class="notice">既に予約票をお持ちの方は入力不要です。予約時間に合わせてご来院ください。</div>
       <label>本日受診される方は何名ですか？<span class="req">必須</span></label>
       <div class="count-btns">
@@ -432,6 +432,24 @@ function selectCount(n) {
 }
 
 function startReception() {
+  // 受付可能かを送信時にも再チェック
+  if (!USE_MOCK && cfg.overrideOpen !== true) {
+    if (cfg.overrideOpen === false) {
+      alert('現在、受付は終了しています。');
+      checkOpen();
+      return;
+    }
+    if (!isTuesday()) {
+      alert('本日は受付対象外の曜日です。');
+      checkOpen();
+      return;
+    }
+    if (!isOpen()) {
+      alert('受付時間外です。受付時間：8:00〜10:00');
+      checkOpen();
+      return;
+    }
+  }
   persons = [];
   for (var i = 0; i < totalCount; i++) {
     persons.push({ pid:'', kana:'', kanaSei:'', kanaMei:'', birth:'', phone:'', type:'', webId:'', step1Done:false, step2Done:false });
@@ -474,6 +492,14 @@ function onTypeChange() {
 }
 
 function doStep1() {
+  // 送信時にも受付可能かチェック
+  if (!USE_MOCK && cfg.overrideOpen !== true) {
+    if (cfg.overrideOpen === false || !isTuesday() || !isOpen()) {
+      alert('受付時間外のため送信できません。');
+      checkOpen();
+      return;
+    }
+  }
   var type = document.getElementById('f-type').value;
   var hasCard = (type === '診察券あり');
   var pid  = (document.getElementById('f-pid').value || '').trim();
