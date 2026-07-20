@@ -318,6 +318,9 @@ try {
 } catch(e) { myWebIds = []; }
 
 window.onload = function() {
+  // TEST_MODEなら最初から受付画面を表示
+  if (TEST_MODE) { show('screen-count'); }
+
   document.getElementById('tab-reception').addEventListener('click', function() { switchTab('reception'); });
   document.getElementById('tab-list').addEventListener('click', function() { switchTab('list'); });
   document.getElementById('tab-cancel').addEventListener('click', function() { switchTab('cancel'); });
