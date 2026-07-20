@@ -344,10 +344,16 @@ window.onload = function() {
   }, 600000);
 };
 
+// ★ テストモード：true=時間・曜日チェックをすべて無視して開く
+//   本番運用時は false に変更してデプロイしてください
+var TEST_MODE = true;
+
 function isTuesday() {
-  return true; // テスト用：本番は「return new Date().getDay() === 2;」に戻す
+  if (TEST_MODE) return true;
+  return new Date().getDay() === 2;
 }
 function isOpen() {
+  if (TEST_MODE) return true;
   if (cfg.overrideOpen === true) return true;
   if (cfg.overrideOpen === false) return false;
   if (!isTuesday()) return false;
@@ -356,7 +362,7 @@ function isOpen() {
 }
 function checkOpen() {
   hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
-  if (cfg.overrideOpen === true) { show('screen-count'); return; }
+  if (TEST_MODE || cfg.overrideOpen === true) { show('screen-count'); return; }
   if (cfg.overrideOpen === false) { show('msg-closed'); hide('screen-count'); return; }
   if (!isTuesday()) { show('msg-nottuesday'); hide('screen-count'); return; }
   if (!isOpen() && new Date().getHours() < cfg.openHour) { show('msg-waiting'); hide('screen-count'); return; }
