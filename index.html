@@ -306,6 +306,48 @@ tr.my-row{background:#fffde6;}
 </div>
 
 <script>
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxKZoSTW3cgaNjnt8mmbGGgvbWzeP0Y0wynP0KnBA-pas6TOHW9gq7qE7w5wC31J9Fh/exec';
+
+// JSONP呼び出しヘルパー
+function callGas(action, data, callback) {
+  var cbName = 'gcb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  var params = 'action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(cbName);
+  if (data) {
+    for (var key in data) {
+      if (data.hasOwnProperty(key)) {
+        params += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(String(data[key] === null || data[key] === undefined ? '' : data[key]));
+      }
+    }
+  }
+  var script = document.createElement('script');
+  var done = false;
+  var timer = setTimeout(function() {
+    if (done) return;
+    done = true;
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    callback({ success: false, message: 'タイムアウトしました。再度お試しください。' });
+  }, 20000);
+  window[cbName] = function(result) {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    callback(result);
+  };
+  script.onerror = function() {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    callback({ success: false, message: '通信エラーが発生しました。' });
+  };
+  script.src = GAS_URL + '?' + params;
+  document.body.appendChild(script);
+}
+
 var cfg = { overrideOpen: null, openHour: 8, closeHour: 10 };
 var totalCount = 1;
 var currentPerson = 0;
@@ -337,10 +379,11 @@ window.onload = function() {
   document.getElementById('c-type').addEventListener('change', onCancelTypeChange);
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
-  google.script.run
-    .withSuccessHandler(function(c) { cfg = c; checkOpen(); loadList(); })
-    .withFailureHandler(function() { checkOpen(); loadList(); })
-    .getReceptionConfig();
+  callGas('getReceptionConfig', null, function(c) {
+    if (c && !c.error) cfg = c;
+    checkOpen();
+    loadList();
+  });
 
   setInterval(function() {
     if (currentStep !== 3) loadList();
@@ -459,41 +502,34 @@ function doStep1() {
   btn.disabled = true; btn.textContent = '送信中...';
   var kana = sei + ' ' + mei;
 
-  google.script.run
-    .withSuccessHandler(function(res) {
-      if (res.success) {
-        persons[currentPerson].pid = pid;
-        persons[currentPerson].kana = kana;
-        persons[currentPerson].kanaSei = sei;
-        persons[currentPerson].kanaMei = mei;
-        persons[currentPerson].birth = birth;
-        persons[currentPerson].phone = phone;
-        persons[currentPerson].type = type;
-        persons[currentPerson].webId = res.webId;
-        persons[currentPerson].step1Done = true;
-        myWebIds.push(res.webId);
-        try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
-        loadList();
-        if (currentPerson < totalCount - 1) {
-          currentPerson++;
-          renderStep1();
-        } else {
-          currentPerson = 0;
-          currentStep = 3;
-          renderStep2();
-        }
+  callGas('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
+    if (res && res.success) {
+      persons[currentPerson].pid = pid;
+      persons[currentPerson].kana = kana;
+      persons[currentPerson].kanaSei = sei;
+      persons[currentPerson].kanaMei = mei;
+      persons[currentPerson].birth = birth;
+      persons[currentPerson].phone = phone;
+      persons[currentPerson].type = type;
+      persons[currentPerson].webId = res.webId;
+      persons[currentPerson].step1Done = true;
+      myWebIds.push(res.webId);
+      try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
+      loadList();
+      if (currentPerson < totalCount - 1) {
+        currentPerson++;
+        renderStep1();
       } else {
-        alert(res.message || 'エラーが発生しました。');
-        btn.disabled = false;
-        btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
+        currentPerson = 0;
+        currentStep = 3;
+        renderStep2();
       }
-    })
-    .withFailureHandler(function() {
-      alert('通信エラーが発生しました。');
+    } else {
+      alert((res && res.message) || 'エラーが発生しました。');
       btn.disabled = false;
       btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
-    })
-    .submitStep1({ type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone });
+    }
+  });
 }
 
 function renderStep2() {
@@ -582,33 +618,26 @@ function doStep2() {
     allergy: document.getElementById('m-allergy').value || ''
   };
 
-  google.script.run
-    .withSuccessHandler(function(res) {
-      if (res.success) {
-        persons[currentPerson].postcode = data.postcode;
-        persons[currentPerson].address  = data.address;
-        persons[currentPerson].phone    = data.phone;
-        persons[currentPerson].step2Done = true;
-        if (currentPerson < totalCount - 1) {
-          currentPerson++;
-          renderStep2();
-        } else {
-          currentStep = 4;
-          showComplete();
-        }
+  callGas('submitStep2', data, function(res) {
+    if (res && res.success) {
+      persons[currentPerson].postcode = data.postcode;
+      persons[currentPerson].address  = data.address;
+      persons[currentPerson].phone    = data.phone;
+      persons[currentPerson].step2Done = true;
+      if (currentPerson < totalCount - 1) {
+        currentPerson++;
+        renderStep2();
       } else {
-        alert(res.message || 'エラーが発生しました。');
-        btn.disabled = false;
-        btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1)
-          ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
+        currentStep = 4;
+        showComplete();
       }
-    })
-    .withFailureHandler(function() {
-      alert('通信エラーが発生しました。');
+    } else {
+      alert((res && res.message) || 'エラーが発生しました。');
       btn.disabled = false;
-      btn.textContent = '問診票を送信する →';
-    })
-    .submitStep2(data);
+      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1)
+        ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
+    }
+  });
 }
 
 function showComplete() {
@@ -636,12 +665,11 @@ function goToMonshin(webId, pid) {
 function loadList() {
   var el = document.getElementById('list-content');
   el.innerHTML = '<div class="loading">読み込み中...</div>';
-  google.script.run
-    .withSuccessHandler(function(list) {
-      if (!list || list.length === 0) {
-        el.innerHTML = '<p style="color:#888;text-align:center;padding:20px">本日の受付はまだありません。</p>';
-        return;
-      }
+  callGas('getWaitingList', null, function(list) {
+    if (!list || list.error || list.length === 0) {
+      el.innerHTML = '<p style="color:#888;text-align:center;padding:20px">本日の受付はまだありません。</p>';
+      return;
+    }
       var rows = list.map(function(item) {
         var isMe = myWebIds.indexOf(item.webId) >= 0;
         var isCancel = item.status && item.status.indexOf('キャンセル') >= 0;
@@ -668,10 +696,7 @@ function loadList() {
         if (btn) btn.addEventListener('click', function() { goToMonshin(item.webId, item.pid); });
       });
     })
-    .withFailureHandler(function() {
-      el.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px">読み込みに失敗しました。更新ボタンを押してください。</p>';
-    })
-    .getWaitingList();
+  });
 }
 
 function onCancelTypeChange() {
@@ -697,28 +722,23 @@ function submitCancel() {
   var btn = document.getElementById('btn-cancel');
   btn.disabled = true; btn.textContent = '処理中...';
 
-  google.script.run
-    .withSuccessHandler(function(res) {
-      hide('cancel-form');
-      show('cancel-result');
-      if (res.found) {
-        document.getElementById('cancel-result').innerHTML = '<div class="result-ok">✓ 取消が完了しました。</div>';
-      } else {
-        document.getElementById('cancel-result').innerHTML =
-          '<div class="result-ng">' + (res.message || '該当する受付が見つかりませんでした。') + '</div>' +
-          '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
-        document.getElementById('btn-retry').addEventListener('click', function() {
-          hide('cancel-result'); show('cancel-form');
-          btn.disabled = false; btn.textContent = '取消を申請する';
-        });
-      }
-      loadList();
-    })
-    .withFailureHandler(function() {
-      alert('通信エラーが発生しました。スタッフにお電話ください。\nTEL：0553-22-2511');
-      btn.disabled = false; btn.textContent = '取消を申請する';
-    })
-    .submitCancel({ pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone });
+  callGas('submitCancel', { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone }, function(res) {
+    hide('cancel-form');
+    show('cancel-result');
+    if (res && res.found) {
+      document.getElementById('cancel-result').innerHTML = '<div class="result-ok">✓ 取消が完了しました。</div>';
+    } else {
+      document.getElementById('cancel-result').innerHTML =
+        '<div class="result-ng">' + ((res && res.message) || '該当する受付が見つかりませんでした。') + '</div>' +
+        '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
+      var retryBtn = document.getElementById('btn-retry');
+      if (retryBtn) retryBtn.addEventListener('click', function() {
+        hide('cancel-result'); show('cancel-form');
+        btn.disabled = false; btn.textContent = '取消を申請する';
+      });
+    }
+    loadList();
+  });
 }
 </script>
 </body>
