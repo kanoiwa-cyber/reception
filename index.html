@@ -7,7 +7,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:100%;width:100%;overflow-x:hidden;}
-body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;font-size:16px;background:#f0f4f8;color:#333;min-height:100vh;width:100%;overflow-x:hidden;}
+body{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;font-size:16px;background:#f0f4f8;color:#333;min-height:100vh;}
 .app-wrap{background:#f0f4f8;min-height:100vh;width:100%;}
 .tab-bar{display:flex;background:#fff;border-bottom:2px solid #dce8f0;position:sticky;top:0;z-index:10;}
 .tab{flex:1;padding:18px 4px;text-align:center;font-size:15px;font-weight:bold;color:#999;cursor:pointer;border-bottom:3px solid transparent;-webkit-tap-highlight-color:transparent;}
@@ -67,21 +67,13 @@ tr.my-row{background:#fffde6;}
   <div class="tab" id="tab-cancel">取消する</div>
 </div>
 
-<!-- 受付パネル -->
 <div class="panel active" id="panel-reception">
   <div class="card">
     <h2>🏥 当日順番受付</h2>
-    <div id="msg-closed" class="hidden">
-      <div class="closed-box">本日の受付は終了いたしました。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">次回の診察日（火曜日）にご利用ください。</span></div>
-    </div>
-    <div id="msg-waiting" class="hidden">
-      <div class="waiting-box">受付開始までお待ちください。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">受付時間：8:00 〜 10:00</span></div>
-    </div>
-    <div id="msg-nottuesday" class="hidden">
-      <div class="closed-box">本日は受付対象外の曜日です。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">このシステムは火曜日午前（8:00〜10:00）のみご利用いただけます。</span></div>
-    </div>
+    <div id="msg-closed" class="hidden"><div class="closed-box">本日の受付は終了いたしました。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">次回の診察日（火曜日）にご利用ください。</span></div></div>
+    <div id="msg-waiting" class="hidden"><div class="waiting-box">受付開始までお待ちください。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">受付時間：8:00 〜 10:00</span></div></div>
+    <div id="msg-nottuesday" class="hidden"><div class="closed-box">本日は受付対象外の曜日です。<br><span style="font-size:13px;font-weight:normal;margin-top:8px;display:block">このシステムは火曜日午前（8:00〜10:00）のみご利用いただけます。</span></div></div>
 
-    <!-- SCREEN 1: 人数選択 -->
     <div id="screen-count" class="hidden">
       <div class="notice">既に予約票をお持ちの方は入力不要です。予約時間に合わせてご来院ください。</div>
       <label>本日受診される方は何名ですか？<span class="req">必須</span></label>
@@ -94,7 +86,6 @@ tr.my-row{background:#fffde6;}
       <button class="btn btn-primary" id="btn-start">受付を開始する →</button>
     </div>
 
-    <!-- SCREEN 2: STEP1入力 -->
     <div id="screen-step1" class="hidden">
       <div class="step-indicator">
         <div class="step-dot active">① 受付情報入力</div>
@@ -132,7 +123,6 @@ tr.my-row{background:#fffde6;}
       <button class="btn btn-primary" id="btn-step1">次へ：問診票を入力する →</button>
     </div>
 
-    <!-- SCREEN 3: STEP2問診 -->
     <div id="screen-step2" class="hidden">
       <div id="step2-webid-cards"></div>
       <div id="step2-done-cards"></div>
@@ -198,14 +188,12 @@ tr.my-row{background:#fffde6;}
       <textarea id="m-metal" placeholder="ない場合は「なし」と記入"></textarea>
       <label>アレルギー<span class="req">必須</span></label>
       <textarea id="m-allergy" placeholder="ない場合は「なし」と記入"></textarea>
-
-      <!-- 確認チェックボックス -->
       <div style="background:#fff3cd;border:2px solid #e74c3c;border-radius:14px;padding:18px;margin-top:24px;">
         <p style="color:#c0392b;font-weight:bold;font-size:16px;margin-bottom:12px;">⚠️ 来院前に必ずご確認ください</p>
         <p style="font-size:14px;line-height:1.9;color:#333;margin-bottom:16px;">
           WEB受付された方は、<strong>来院目安時間（午前9時以降に確定）にご来院ください。</strong><br>
           <strong style="color:#e74c3c;">受付開始の朝8〜10時に来院する必要はありません。</strong><br><br>
-          来院時は窓口で<br>「<strong>WEB受付をした〇〇（お名前）です</strong>」とお申し出ください。<br>
+          来院時は窓口で「<strong>WEB受付をした〇〇（お名前）です</strong>」とお申し出ください。<br>
           <strong style="color:#e74c3c;">受付機に診察券を通さないでください。</strong>
         </p>
         <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin:0;">
@@ -216,7 +204,6 @@ tr.my-row{background:#fffde6;}
       <button class="btn btn-green" id="btn-step2">問診票を送信する →</button>
     </div>
 
-    <!-- SCREEN 4: 完了 -->
     <div id="screen-complete" class="hidden">
       <div class="step-indicator">
         <div class="step-dot done">① 受付完了</div>
@@ -224,40 +211,29 @@ tr.my-row{background:#fffde6;}
         <div class="step-dot active">③ 完了</div>
       </div>
       <div id="complete-webid-cards"></div>
-      <div style="background:#fff3cd;border:1.5px solid #e67e22;border-radius:10px;padding:14px;margin-top:4px;font-size:14px;line-height:1.8;">
-        📌 <strong>受付番号を上の画面でご確認の上、メモまたはスクリーンショットを保存してください。</strong><br>
-        <span style="font-size:12px;color:#888;">※ブラウザの設定によっては「◀あなた」マークが表示されない場合があります。</span>
-      </div>
-      <div style="background:#fff;border-radius:10px;padding:14px;margin-top:8px;font-size:14px;line-height:1.8;">
+      <div style="background:#fff;border-radius:10px;padding:14px;margin-top:4px;font-size:14px;line-height:1.8;">
         「<strong>順番を確認する</strong>」タブで来院目安時間をご確認ください。<br>
         <strong>目安時間は午前9時以降に更新されます。</strong><br><br>
-        来院時は総合窓口で<br>「<strong>WEB受付をした〇〇（お名前）です</strong>」とお申し出ください。<br>
-        <strong style="color:#e74c3c;">受付機に診察券を通さないでください。</strong><br><br>
-        持ち物：診察券（お持ちの方）・マイナンバー
+        来院時は総合窓口で「<strong>WEB受付をした〇〇です</strong>」とお申し出ください。<br>
+        <strong style="color:#e74c3c;">受付機に診察券を通さないでください。</strong>
       </div>
       <button class="btn btn-primary" id="btn-go-list" style="margin-top:14px;">順番を確認する →</button>
     </div>
   </div>
 </div>
 
-<!-- リストパネル -->
 <div class="panel" id="panel-list">
   <div class="card">
     <h2>📋 本日の受付状況</h2>
     <div style="background:#fff3cd;border-left:4px solid #e74c3c;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.8;color:#333;">
       <strong style="color:#c0392b;">⚠️ WEB受付された方へ</strong><br>
-      目安時間が確定するまで朝の来院はお控えください。<br>
-      来院時は受付機を使わず、窓口で「WEB受付をした〇〇です」とお申し出ください。
+      目安時間が確定するまで朝の来院はお控えください。来院時は受付機を使わず窓口でお申し出ください。
     </div>
     <div style="background:#eaf4fb;border-radius:8px;padding:12px 14px;margin-bottom:10px;color:#1a5276;">
-      <div style="text-align:center;font-size:14px;font-weight:bold;margin-bottom:8px;">
-        🕐 来院目安時間は概ね <span style="color:#e74c3c;font-size:18px;">12:00以降</span> となります
-      </div>
+      <div style="text-align:center;font-size:14px;font-weight:bold;margin-bottom:8px;">🕐 来院目安時間は概ね <span style="color:#e74c3c;font-size:18px;">12:00以降</span> となります</div>
       <div style="font-size:13px;font-weight:bold;margin-bottom:6px;">ご自身の来院目安時間を確認してからご来院ください</div>
       <div style="background:#fff;border-radius:8px;padding:8px 10px;font-size:13px;color:#555;">
-        例）<span style="color:#1a5276;font-weight:bold;">WEB受付005</span>　カノイワ 様　
-        <span style="display:inline-block;background:#e8f5e9;border:1px solid #27ae60;color:#1e7e34;border-radius:20px;padding:2px 10px;font-weight:bold;">14:00</span>
-        　← この時間に来院
+        例）<span style="color:#1a5276;font-weight:bold;">WEB受付005</span>　カノイワ 様　<span style="display:inline-block;background:#e8f5e9;border:1px solid #27ae60;color:#1e7e34;border-radius:20px;padding:2px 10px;font-weight:bold;">14:00</span>　← この時間に来院
       </div>
     </div>
     <div class="list-meta">
@@ -268,7 +244,6 @@ tr.my-row{background:#fffde6;}
   </div>
 </div>
 
-<!-- 取消パネル -->
 <div class="panel" id="panel-cancel">
   <div class="card">
     <h2>❌ 順番の取消</h2>
@@ -298,7 +273,6 @@ tr.my-row{background:#fffde6;}
   </div>
 </div>
 
-<!-- プライバシーポリシー -->
 <div style="text-align:center;padding:20px 14px;border-top:1px solid #dce8f0;margin-top:10px;">
   <a href="https://kanoiwa-hospital.or.jp/?p=4617" target="_blank" style="color:#888;font-size:12px;text-decoration:underline;">当システムの利用に関するプライバシーポリシー</a>
 </div>
@@ -308,41 +282,37 @@ tr.my-row{background:#fffde6;}
 <script>
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxKZoSTW3cgaNjnt8mmbGGgvbWzeP0Y0wynP0KnBA-pas6TOHW9gq7qE7w5wC31J9Fh/exec';
 
-// JSONP呼び出しヘルパー
 function callGas(action, data, callback) {
-  var cbName = 'gcb_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-  var params = 'action=' + encodeURIComponent(action) + '&callback=' + encodeURIComponent(cbName);
+  var cbName = 'gcb' + Date.now();
+  var params = 'action=' + encodeURIComponent(action) + '&callback=' + cbName;
   if (data) {
-    for (var key in data) {
-      if (data.hasOwnProperty(key)) {
-        params += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(String(data[key] === null || data[key] === undefined ? '' : data[key]));
+    for (var k in data) {
+      if (data.hasOwnProperty(k)) {
+        params += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(data[k] == null ? '' : String(data[k]));
       }
     }
   }
   var script = document.createElement('script');
   var done = false;
   var timer = setTimeout(function() {
-    if (done) return;
-    done = true;
+    if (done) return; done = true;
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    callback({ success: false, message: 'タイムアウトしました。再度お試しください。' });
-  }, 20000);
-  window[cbName] = function(result) {
-    if (done) return;
-    done = true;
+    callback({ success: false, error: 'timeout', message: 'タイムアウトしました。再度お試しください。' });
+  }, 25000);
+  window[cbName] = function(res) {
+    if (done) return; done = true;
     clearTimeout(timer);
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    callback(result);
+    callback(res);
   };
   script.onerror = function() {
-    if (done) return;
-    done = true;
+    if (done) return; done = true;
     clearTimeout(timer);
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    callback({ success: false, message: '通信エラーが発生しました。' });
+    callback({ success: false, error: 'network', message: '通信エラーが発生しました。' });
   };
   script.src = GAS_URL + '?' + params;
   document.body.appendChild(script);
@@ -360,9 +330,6 @@ try {
 } catch(e) { myWebIds = []; }
 
 window.onload = function() {
-  // TEST_MODEなら最初から受付画面を表示
-  if (TEST_MODE) { show('screen-count'); }
-
   document.getElementById('tab-reception').addEventListener('click', function() { switchTab('reception'); });
   document.getElementById('tab-list').addEventListener('click', function() { switchTab('list'); });
   document.getElementById('tab-cancel').addEventListener('click', function() { switchTab('cancel'); });
@@ -379,27 +346,16 @@ window.onload = function() {
   document.getElementById('c-type').addEventListener('change', onCancelTypeChange);
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
+  show('screen-count'); // 常に受付画面を表示
   callGas('getReceptionConfig', null, function(c) {
-    if (c && !c.error) cfg = c;
-    checkOpen();
-    loadList();
+    if (c && !c.error) { cfg = c; checkOpen(); }
   });
-
-  setInterval(function() {
-    if (currentStep !== 3) loadList();
-  }, 600000);
+  loadList();
+  setInterval(function() { if (currentStep < 3) loadList(); }, 600000);
 };
 
-// ★ テストモード：true=時間・曜日チェックをすべて無視して開く
-//   本番運用時は false に変更してデプロイしてください
-var TEST_MODE = true;
-
-function isTuesday() {
-  if (TEST_MODE) return true;
-  return new Date().getDay() === 2;
-}
+function isTuesday() { return true; } // テスト用（本番：return new Date().getDay() === 2;）
 function isOpen() {
-  if (TEST_MODE) return true;
   if (cfg.overrideOpen === true) return true;
   if (cfg.overrideOpen === false) return false;
   if (!isTuesday()) return false;
@@ -408,14 +364,9 @@ function isOpen() {
 }
 function checkOpen() {
   hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
-  if (TEST_MODE || cfg.overrideOpen === true) { show('screen-count'); return; }
   if (cfg.overrideOpen === false) { show('msg-closed'); hide('screen-count'); return; }
-  if (!isTuesday()) { show('msg-nottuesday'); hide('screen-count'); return; }
-  if (!isOpen() && new Date().getHours() < cfg.openHour) { show('msg-waiting'); hide('screen-count'); return; }
-  if (!isOpen()) { show('msg-closed'); hide('screen-count'); return; }
   show('screen-count');
 }
-
 function switchTab(tab) {
   ['reception','list','cancel'].forEach(function(t) {
     var p = document.getElementById('panel-' + t);
@@ -425,43 +376,32 @@ function switchTab(tab) {
   });
   if (tab === 'list') loadList();
 }
-
 function show(id) { var el = document.getElementById(id); if (el) el.classList.remove('hidden'); }
 function hide(id) { var el = document.getElementById(id); if (el) el.classList.add('hidden'); }
 function showScreen(name) {
   ['screen-count','screen-step1','screen-step2','screen-complete'].forEach(function(s) { hide(s); });
   show('screen-' + name);
 }
-
 function selectCount(n) {
   totalCount = n;
   [1,2,3,4].forEach(function(i) {
-    var btn = document.getElementById('cnt-' + i);
-    if (btn) btn.classList.toggle('selected', i === n);
+    var b = document.getElementById('cnt-' + i);
+    if (b) b.classList.toggle('selected', i === n);
   });
 }
-
 function startReception() {
   persons = [];
-  for (var i = 0; i < totalCount; i++) {
-    persons.push({ pid:'', kana:'', kanaSei:'', kanaMei:'', birth:'', phone:'', type:'', webId:'', step1Done:false, step2Done:false });
-  }
-  currentPerson = 0;
-  currentStep = 2;
-  renderStep1();
+  for (var i = 0; i < totalCount; i++) persons.push({ pid:'', kana:'', kanaSei:'', kanaMei:'', birth:'', phone:'', type:'', webId:'', step1Done:false, step2Done:false });
+  currentPerson = 0; currentStep = 2; renderStep1();
 }
-
 function renderStep1() {
   var doneHtml = '';
   for (var i = 0; i < currentPerson; i++) {
-    if (persons[i] && persons[i].webId) {
-      doneHtml += '<div class="notice-green">✓ ' + (i+1) + '人目：' + persons[i].webId + ' 受付完了</div>';
-    }
+    if (persons[i] && persons[i].webId) doneHtml += '<div class="notice-green">✓ ' + (i+1) + '人目：' + persons[i].webId + ' 受付完了</div>';
   }
   document.getElementById('step1-done-cards').innerHTML = doneHtml;
   document.getElementById('step1-person-header').innerHTML = totalCount > 1
-    ? '<div style="background:#1a5276;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;margin:14px 0 10px;">' + (currentPerson+1) + '人目の情報を入力してください</div>'
-    : '';
+    ? '<div style="background:#1a5276;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;margin:14px 0 10px;">' + (currentPerson+1) + '人目の情報を入力してください</div>' : '';
   document.getElementById('f-type').value = '';
   document.getElementById('f-pid').value = '';
   document.getElementById('f-kana-sei').value = '';
@@ -471,18 +411,15 @@ function renderStep1() {
   document.getElementById('f-birth').value = '';
   document.getElementById('f-phone').value = '';
   hide('pid-area'); hide('nopid-area');
-  document.getElementById('btn-step1').textContent =
-    (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
+  document.getElementById('btn-step1').textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
   showScreen('step1');
 }
-
 function onTypeChange() {
   var type = document.getElementById('f-type').value;
   if (type === '診察券あり') { show('pid-area'); hide('nopid-area'); }
   else if (type === '診察券なし') { hide('pid-area'); show('nopid-area'); }
   else { hide('pid-area'); hide('nopid-area'); }
 }
-
 function doStep1() {
   var type = document.getElementById('f-type').value;
   var hasCard = (type === '診察券あり');
@@ -491,39 +428,26 @@ function doStep1() {
   var mei  = hasCard ? (document.getElementById('f-kana-mei').value || '').trim() : (document.getElementById('f-kana-mei2').value || '').trim();
   var birth = (document.getElementById('f-birth').value || '').trim();
   var phone = (document.getElementById('f-phone').value || '').trim();
-
   if (!type || !birth || !phone) { alert('診察券の有無・生年月日・電話番号は必須です。'); return; }
   if (hasCard && !pid) { alert('診察券番号を入力してください。'); return; }
   if (!sei) { alert('お名前カナ（姓）は必須です。'); return; }
   if (!mei) { alert('お名前カナ（名）は必須です。'); return; }
   if (!pid) pid = 'NEW' + String(Date.now()).slice(-6);
-
   var btn = document.getElementById('btn-step1');
   btn.disabled = true; btn.textContent = '送信中...';
   var kana = sei + ' ' + mei;
-
   callGas('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
     if (res && res.success) {
-      persons[currentPerson].pid = pid;
-      persons[currentPerson].kana = kana;
-      persons[currentPerson].kanaSei = sei;
-      persons[currentPerson].kanaMei = mei;
-      persons[currentPerson].birth = birth;
-      persons[currentPerson].phone = phone;
-      persons[currentPerson].type = type;
-      persons[currentPerson].webId = res.webId;
+      persons[currentPerson].pid = pid; persons[currentPerson].kana = kana;
+      persons[currentPerson].kanaSei = sei; persons[currentPerson].kanaMei = mei;
+      persons[currentPerson].birth = birth; persons[currentPerson].phone = phone;
+      persons[currentPerson].type = type; persons[currentPerson].webId = res.webId;
       persons[currentPerson].step1Done = true;
       myWebIds.push(res.webId);
       try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
       loadList();
-      if (currentPerson < totalCount - 1) {
-        currentPerson++;
-        renderStep1();
-      } else {
-        currentPerson = 0;
-        currentStep = 3;
-        renderStep2();
-      }
+      if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
+      else { currentPerson = 0; currentStep = 3; renderStep2(); }
     } else {
       alert((res && res.message) || 'エラーが発生しました。');
       btn.disabled = false;
@@ -531,72 +455,45 @@ function doStep1() {
     }
   });
 }
-
 function renderStep2() {
   var p = persons[currentPerson];
-  var webIdHtml = persons.map(function(person, i) {
+  document.getElementById('step2-webid-cards').innerHTML = persons.map(function(person, i) {
     if (!person.webId) return '';
-    return '<div class="webid-card"><div class="webid-label">' + (totalCount > 1 ? (i+1) + '人目の' : '') + '受付番号</div>' +
-      '<div class="webid-num">' + person.webId + '</div>' +
-      '<div class="webid-sub">次に問診票を送信してください</div></div>';
+    return '<div class="webid-card"><div class="webid-label">' + (totalCount > 1 ? (i+1) + '人目の' : '') + '受付番号</div><div class="webid-num">' + person.webId + '</div><div class="webid-sub">次に問診票を送信してください</div></div>';
   }).join('');
-  document.getElementById('step2-webid-cards').innerHTML = webIdHtml;
-
   var doneHtml = '';
   for (var i = 0; i < currentPerson; i++) {
-    if (persons[i] && persons[i].step2Done) {
-      doneHtml += '<div class="notice-green">✓ ' + (i+1) + '人目（' + persons[i].kana + '）問診票送信完了</div>';
-    }
+    if (persons[i] && persons[i].step2Done) doneHtml += '<div class="notice-green">✓ ' + (i+1) + '人目（' + persons[i].kana + '）問診票送信完了</div>';
   }
   document.getElementById('step2-done-cards').innerHTML = doneHtml;
-
   document.getElementById('step2-person-header').innerHTML = totalCount > 1
-    ? '<div style="background:#1a5276;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;margin:14px 0 10px;">' + (currentPerson+1) + '人目の問診票を入力してください（' + (p.kana || '') + '）</div>'
-    : '';
-
+    ? '<div style="background:#1a5276;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;margin:14px 0 10px;">' + (currentPerson+1) + '人目の問診票を入力してください（' + (p.kana || '') + '）</div>' : '';
   document.getElementById('pid-display-area').innerHTML = p.type === '診察券あり'
     ? '<label>診察券番号</label><input type="text" id="m-pid" inputmode="numeric" value="' + p.pid + '">'
     : '<input type="hidden" id="m-pid" value="' + p.pid + '">';
-
   document.getElementById('m-kana').value = p.kana || '';
   document.getElementById('m-birth').value = p.birth || '';
   document.getElementById('m-phone').value = (currentPerson > 0 && persons[0].phone) ? persons[0].phone : (p.phone || '');
   document.getElementById('m-addr').value = (currentPerson > 0 && persons[0].address) ? persons[0].address : '';
   document.getElementById('m-post').value = (currentPerson > 0 && persons[0].postcode) ? persons[0].postcode : '';
-
-  // チェックボックスをリセット
-  var chk = document.getElementById('confirm-check');
-  if (chk) chk.checked = false;
-
-  document.getElementById('btn-step2').textContent =
-    (totalCount > 1 && currentPerson < totalCount - 1)
-      ? (currentPerson + 1) + '人目の問診票を送信する →'
-      : '問診票を送信する →';
-
+  var chk = document.getElementById('confirm-check'); if (chk) chk.checked = false;
+  document.getElementById('btn-step2').textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
   showScreen('step2');
 }
-
 function doStep2() {
-  var confirmChk = document.getElementById('confirm-check');
-  if (confirmChk && !confirmChk.checked) {
-    alert('「上記の内容を理解しました」にチェックを入れてから送信してください。');
-    return;
-  }
+  var chk = document.getElementById('confirm-check');
+  if (chk && !chk.checked) { alert('「上記の内容を理解しました」にチェックを入れてから送信してください。'); return; }
   var p = persons[currentPerson];
   var pid    = (document.getElementById('m-pid') || {value: p.pid}).value || p.pid;
   var name   = (document.getElementById('m-name').value || '').trim();
   var kana   = (document.getElementById('m-kana').value || '').trim();
   var birth  = (document.getElementById('m-birth').value || '').trim();
   var gender = (document.getElementById('m-gender').value || '').trim();
-
   if (!name || !kana || !birth || !gender) { alert('お名前・生年月日・性別は必須です。'); return; }
-
   var btn = document.getElementById('btn-step2');
   btn.disabled = true; btn.textContent = '送信中...';
-
   var data = {
-    pid: pid || p.pid,
-    name: name, kana: kana, birth: birth, gender: gender,
+    pid: pid || p.pid, name: name, kana: kana, birth: birth, gender: gender,
     postcode: document.getElementById('m-post').value || '',
     address:  document.getElementById('m-addr').value || '',
     phone:    document.getElementById('m-phone').value || p.phone || '',
@@ -617,122 +514,96 @@ function doStep2() {
     metal:  document.getElementById('m-metal').value || '',
     allergy: document.getElementById('m-allergy').value || ''
   };
-
   callGas('submitStep2', data, function(res) {
     if (res && res.success) {
       persons[currentPerson].postcode = data.postcode;
       persons[currentPerson].address  = data.address;
       persons[currentPerson].phone    = data.phone;
       persons[currentPerson].step2Done = true;
-      if (currentPerson < totalCount - 1) {
-        currentPerson++;
-        renderStep2();
-      } else {
-        currentStep = 4;
-        showComplete();
-      }
+      if (currentPerson < totalCount - 1) { currentPerson++; renderStep2(); }
+      else { currentStep = 4; showComplete(); }
     } else {
       alert((res && res.message) || 'エラーが発生しました。');
       btn.disabled = false;
-      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1)
-        ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
+      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? (currentPerson+1) + '人目の問診票を送信する →' : '問診票を送信する →';
     }
   });
 }
-
 function showComplete() {
-  var html = persons.map(function(p, i) {
+  document.getElementById('complete-webid-cards').innerHTML = persons.map(function(p, i) {
     if (!p.webId) return '';
-    return '<div class="webid-card"><div class="webid-label">' + (totalCount > 1 ? (i+1) + '人目の' : '') + '受付番号</div>' +
-      '<div class="webid-num">' + p.webId + '</div>' +
-      '<div class="webid-sub">✓ 受付・問診完了</div></div>';
+    return '<div class="webid-card"><div class="webid-label">' + (totalCount > 1 ? (i+1) + '人目の' : '') + '受付番号</div><div class="webid-num">' + p.webId + '</div><div class="webid-sub">✓ 受付・問診完了</div></div>';
   }).join('');
-  document.getElementById('complete-webid-cards').innerHTML = html;
   showScreen('complete');
   switchTab('list');
   loadList();
 }
-
 function goToMonshin(webId, pid) {
   totalCount = 1;
   persons = [{ pid: pid, kana: '', birth: '', phone: '', type: '', webId: webId, step1Done: true, step2Done: false }];
-  currentPerson = 0;
-  currentStep = 3;
-  switchTab('reception');
-  renderStep2();
+  currentPerson = 0; currentStep = 3;
+  switchTab('reception'); renderStep2();
 }
-
 function loadList() {
   var el = document.getElementById('list-content');
   el.innerHTML = '<div class="loading">読み込み中...</div>';
   callGas('getWaitingList', null, function(list) {
-    if (!list || list.error || list.length === 0) {
+    if (!list || list.error) {
+      el.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px">読み込みに失敗しました。更新ボタンを押してください。</p>';
+      return;
+    }
+    if (list.length === 0) {
       el.innerHTML = '<p style="color:#888;text-align:center;padding:20px">本日の受付はまだありません。</p>';
       return;
     }
-      var rows = list.map(function(item) {
-        var isMe = myWebIds.indexOf(item.webId) >= 0;
-        var isCancel = item.status && item.status.indexOf('キャンセル') >= 0;
-        var isMonshinReq = item.eta === '問診を送信してください';
-        var etaHtml;
-        if (isCancel) {
-          etaHtml = '<span style="color:#e74c3c;font-weight:bold;">キャンセル</span>';
-        } else if (isMonshinReq && isMe) {
-          etaHtml = '<button id="monshin-btn-' + item.webId + '" style="background:#e67e22;color:#fff;padding:8px 12px;border-radius:20px;border:none;font-size:13px;font-weight:bold;cursor:pointer;">📨 問診票を送信する</button>';
-        } else if (isMonshinReq) {
-          etaHtml = '<span style="color:#e67e22;font-weight:bold;">問診票まち</span>';
-        } else {
-          etaHtml = item.eta ? '<span class="eta-badge">' + item.eta + '</span>' : '<span style="color:#aaa">—</span>';
-        }
-        var rowStyle = isCancel ? ' style="color:#e74c3c;opacity:0.7;"' : '';
-        return '<tr class="' + (isMe ? 'my-row' : '') + '"' + rowStyle + '>' +
-          '<td>' + item.webId + '</td>' +
-          '<td>' + item.pid + (isMe ? ' <span style="color:#e67e22;font-size:12px;font-weight:bold;">◀あなた</span>' : '') + '</td>' +
-          '<td>' + etaHtml + '</td></tr>';
-      }).join('');
-      el.innerHTML = '<table><colgroup><col style="width:28%"><col style="width:36%"><col style="width:36%"></colgroup><thead><tr><th>受付番号</th><th>診察券番号/<br>お名前</th><th>来院目安<br>時間</th></tr></thead><tbody>' + rows + '</tbody></table>';
-      list.forEach(function(item) {
-        var btn = document.getElementById('monshin-btn-' + item.webId);
-        if (btn) btn.addEventListener('click', function() { goToMonshin(item.webId, item.pid); });
-      });
-    })
+    var rows = list.map(function(item) {
+      var isMe = myWebIds.indexOf(item.webId) >= 0;
+      var isCancel = item.status && item.status.indexOf('キャンセル') >= 0;
+      var isMonshinReq = item.eta === '問診を送信してください';
+      var etaHtml;
+      if (isCancel) etaHtml = '<span style="color:#e74c3c;font-weight:bold;">キャンセル</span>';
+      else if (isMonshinReq && isMe) etaHtml = '<button id="monshin-btn-' + item.webId + '" style="background:#e67e22;color:#fff;padding:8px 12px;border-radius:20px;border:none;font-size:13px;font-weight:bold;cursor:pointer;">📨 問診票を送信する</button>';
+      else if (isMonshinReq) etaHtml = '<span style="color:#e67e22;font-weight:bold;">問診票まち</span>';
+      else etaHtml = item.eta ? '<span class="eta-badge">' + item.eta + '</span>' : '<span style="color:#aaa">—</span>';
+      var rowStyle = isCancel ? ' style="color:#e74c3c;opacity:0.7;"' : '';
+      return '<tr class="' + (isMe ? 'my-row' : '') + '"' + rowStyle + '><td>' + item.webId + '</td><td>' + item.pid + (isMe ? ' <span style="color:#e67e22;font-size:12px;font-weight:bold;">◀あなた</span>' : '') + '</td><td>' + etaHtml + '</td></tr>';
+    }).join('');
+    el.innerHTML = '<table><colgroup><col style="width:28%"><col style="width:36%"><col style="width:36%"></colgroup><thead><tr><th>受付番号</th><th>診察券番号/<br>お名前</th><th>来院目安<br>時間</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    list.forEach(function(item) {
+      var btn = document.getElementById('monshin-btn-' + item.webId);
+      if (btn) btn.addEventListener('click', function() { goToMonshin(item.webId, item.pid); });
+    });
   });
 }
-
 function onCancelTypeChange() {
   var type = document.getElementById('c-type').value;
   if (type === 'あり') { show('c-pid-area'); hide('c-kana-area'); }
   else if (type === 'なし') { hide('c-pid-area'); show('c-kana-area'); }
   else { hide('c-pid-area'); hide('c-kana-area'); }
 }
-
 function submitCancel() {
   var type    = (document.getElementById('c-type').value || '').trim();
   var pid     = (document.getElementById('c-pid').value || '').trim();
   var kanaSei = (document.getElementById('c-kana-sei').value || '').trim();
   var kanaMei = (document.getElementById('c-kana-mei').value || '').trim();
   var phone   = (document.getElementById('c-phone').value || '').trim();
-
   if (!type) { alert('診察券の有無を選択してください。'); return; }
   if (type === 'あり' && !pid) { alert('診察券番号を入力してください。'); return; }
   if (type === 'なし' && (!kanaSei || !kanaMei)) { alert('お名前カナの姓・名を入力してください。'); return; }
   if (!phone) { alert('電話番号を入力してください。'); return; }
   if (!confirm('本当に取消しますか？取消後は再受付できません。')) return;
-
   var btn = document.getElementById('btn-cancel');
   btn.disabled = true; btn.textContent = '処理中...';
-
   callGas('submitCancel', { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone }, function(res) {
-    hide('cancel-form');
-    show('cancel-result');
+    hide('cancel-form'); show('cancel-result');
     if (res && res.found) {
       document.getElementById('cancel-result').innerHTML = '<div class="result-ok">✓ 取消が完了しました。</div>';
     } else {
       document.getElementById('cancel-result').innerHTML =
         '<div class="result-ng">' + ((res && res.message) || '該当する受付が見つかりませんでした。') + '</div>' +
         '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
-      var retryBtn = document.getElementById('btn-retry');
-      if (retryBtn) retryBtn.addEventListener('click', function() {
+      var rb = document.getElementById('btn-retry');
+      if (rb) rb.addEventListener('click', function() {
         hide('cancel-result'); show('cancel-form');
         btn.disabled = false; btn.textContent = '取消を申請する';
       });
