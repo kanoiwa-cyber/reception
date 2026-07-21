@@ -346,9 +346,11 @@ window.onload = function() {
   document.getElementById('c-type').addEventListener('change', onCancelTypeChange);
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
-  show('screen-count'); // 常に受付画面を表示
+  // GAS設定を取得してから表示（フラッシュ防止）
+  document.getElementById('screen-count').classList.add('hidden');
   callGas('getReceptionConfig', null, function(c) {
-    if (c && !c.error) { cfg = c; checkOpen(); }
+    if (c && !c.error) cfg = c;
+    checkOpen();
   });
   loadList();
   setInterval(function() { if (currentStep < 3) loadList(); }, 600000);
