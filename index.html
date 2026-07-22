@@ -356,17 +356,17 @@ window.onload = function() {
   setInterval(function() { if (currentStep < 3) loadList(); }, 600000);
 };
 
-function isTuesday() { return true; } // テスト用（本番：return new Date().getDay() === 2;）
-function isOpen() {
-  if (cfg.overrideOpen === true) return true;
-  if (cfg.overrideOpen === false) return false;
-  if (!isTuesday()) return false;
-  var h = new Date().getHours();
-  return h >= cfg.openHour && h < cfg.closeHour;
-}
 function checkOpen() {
   hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
+  // 強制オープン（スタッフ操作）
+  if (cfg.overrideOpen === true) { show('screen-count'); return; }
+  // 強制クローズ（スタッフ操作）
   if (cfg.overrideOpen === false) { show('msg-closed'); hide('screen-count'); return; }
+  // 自動モード：GASから取得した曜日・時刻で判定
+  if (!cfg.isTuesday) { show('msg-nottuesday'); hide('screen-count'); return; }
+  var h = new Date().getHours();
+  if (h < cfg.openHour) { show('msg-waiting'); hide('screen-count'); return; }
+  if (h >= cfg.closeHour) { show('msg-closed'); hide('screen-count'); return; }
   show('screen-count');
 }
 function switchTab(tab) {
