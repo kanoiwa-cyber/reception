@@ -277,13 +277,24 @@ function callGasGet(action, callback, data) {
     }
   }
   var script = document.createElement('script');
+  var done = false;
+  var timer = setTimeout(function() {
+    if (done) return; done = true;
+    delete window[cbName];
+    if (document.body.contains(script)) document.body.removeChild(script);
+    callback(null);
+  }, 15000);
   window[cbName] = function(res) {
+    if (done) return; done = true;
+    clearTimeout(timer);
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
     callback(res);
   };
   script.src = GAS_URL + '?' + params;
   script.onerror = function() {
+    if (done) return; done = true;
+    clearTimeout(timer);
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
     callback(null);
@@ -428,7 +439,9 @@ function renderStep1() {
   document.getElementById('f-birth').value = '';
   document.getElementById('f-phone').value = '';
   hide('pid-area'); hide('nopid-area');
-  document.getElementById('btn-step1').textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
+  var step1Btn = document.getElementById('btn-step1');
+  step1Btn.disabled = false;
+  step1Btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
   showScreen('step1');
 }
 
@@ -456,8 +469,13 @@ function doStep1() {
   btn.disabled = true; btn.textContent = '送信中...';
   var kana = sei + ' ' + mei;
   // 送信前にリスト件数を取得して次番号を予測
+  var btnText = btn.textContent;
   callGasGet('getWaitingList', function(list) {
-    var nextNum = (list && !list.error) ? list.length + 1 : 1;
+    if (!list) {
+      // JSONP失敗時もボタンを戻して送信可能に
+      btn.disabled = false; btn.textContent = btnText; return;
+    }
+    var nextNum = !list.error ? list.length + 1 : 1;
     var predictedWebId = 'WEB受付' + String(nextNum).padStart(3, '0');
 
     callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
