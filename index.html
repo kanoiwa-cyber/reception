@@ -449,13 +449,37 @@ function doStep1() {
       persons[currentPerson].birth = birth;
       persons[currentPerson].phone = phone;
       persons[currentPerson].type = type;
-      persons[currentPerson].webId = res.webId || ('WEB受付' + String(Date.now()).slice(-3));
       persons[currentPerson].step1Done = true;
-      myWebIds.push(persons[currentPerson].webId);
-      try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
-      loadList();
-      if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
-      else { currentPerson = 0; currentStep = 3; renderStep2(); }
+      // GAS処理完了を待ってからリストで実際の受付番号を取得
+      btn.textContent = '受付番号を確認中...';
+      setTimeout(function() {
+        callGasGet('getWaitingList', function(list) {
+          var webId = null;
+          if (list && !list.error && list.length > 0) {
+            // 自分のエントリを特定（pid一致 または kana一致）
+            var normPid = pid.replace(/[^0-9]/g, '');
+            for (var i = list.length - 1; i >= 0; i--) {
+              var item = list[i];
+              var itemPid = String(item.pid || '').replace(/[^0-9]/g, '');
+              if (normPid && itemPid === normPid) { webId = item.webId; break; }
+              if (!normPid || pid.startsWith('NEW')) {
+                var itemKana = String(item.pid || '');
+                if (itemKana.indexOf(sei) >= 0) { webId = item.webId; break; }
+              }
+            }
+            // 見つからなければ最新エントリ
+            if (!webId) webId = list[list.length - 1].webId;
+          }
+          persons[currentPerson].webId = webId || 'WEB受付---';
+          if (webId) {
+            myWebIds.push(webId);
+            try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
+          }
+          loadList();
+          if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
+          else { currentPerson = 0; currentStep = 3; renderStep2(); }
+        });
+      }, 4000); // GASの処理完了を4秒待つ
     } else {
       alert(res.message || 'エラーが発生しました。');
       btn.disabled = false;
