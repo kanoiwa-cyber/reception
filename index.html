@@ -470,43 +470,33 @@ function doStep1() {
   var kana = sei + ' ' + mei;
   // 送信前にリスト件数を取得して次番号を予測
   var savedPersonIdx = currentPerson;
-  callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
-    if (res.success) {
-      persons[savedPersonIdx].pid = pid;
-      persons[savedPersonIdx].kana = kana;
-      persons[savedPersonIdx].kanaSei = sei;
-      persons[savedPersonIdx].kanaMei = mei;
-      persons[savedPersonIdx].birth = birth;
-      persons[savedPersonIdx].phone = phone;
-      persons[savedPersonIdx].type = type;
-      persons[savedPersonIdx].webId = 'WEB受付---';
-      persons[savedPersonIdx].step1Done = true;
-      // 次の画面にすぐ進む
-      if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
-      else { currentPerson = 0; currentStep = 3; renderStep2(); }
-      // バックグラウンドで実際の番号を取得して更新
-      setTimeout(function() {
-        callGasGet('getWaitingList', function(list) {
-          if (list && !list.error && list.length > 0) {
-            var realWebId = list[list.length - 1].webId;
-            persons[savedPersonIdx].webId = realWebId;
-            myWebIds.push(realWebId);
-            try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
-            // 表示を更新
-            var cards = document.getElementById('step2-webid-cards') || document.getElementById('complete-webid-cards');
-            if (cards) {
-              var el = document.querySelector('.webid-num');
-              if (el) el.textContent = realWebId;
-            }
-          }
-          loadList();
-        });
-      }, 3000);
-    } else {
-      alert(res.message || 'エラーが発生しました。');
-      btn.disabled = false;
-      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
-    }
+  var btnOrigText = btn.textContent;
+  // リスト件数を取得して次の番号を予測してから送信
+  callGasGet('getWaitingList', function(list) {
+    var nextNum = (list && !list.error) ? list.length + 1 : 1;
+    var predictedWebId = 'WEB受付' + String(nextNum).padStart(3, '0');
+    callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
+      if (res.success) {
+        persons[savedPersonIdx].pid = pid;
+        persons[savedPersonIdx].kana = kana;
+        persons[savedPersonIdx].kanaSei = sei;
+        persons[savedPersonIdx].kanaMei = mei;
+        persons[savedPersonIdx].birth = birth;
+        persons[savedPersonIdx].phone = phone;
+        persons[savedPersonIdx].type = type;
+        persons[savedPersonIdx].webId = predictedWebId;
+        persons[savedPersonIdx].step1Done = true;
+        myWebIds.push(predictedWebId);
+        try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
+        loadList();
+        if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
+        else { currentPerson = 0; currentStep = 3; renderStep2(); }
+      } else {
+        alert(res.message || 'エラーが発生しました。');
+        btn.disabled = false;
+        btn.textContent = btnOrigText;
+      }
+    });
   });
 }
 
