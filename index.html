@@ -265,16 +265,24 @@ tr.my-row{background:#fffde6;}
 <script>
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxKZoSTW3cgaNjnt8mmbGGgvbWzeP0Y0wynP0KnBA-pas6TOHW9gq7qE7w5wC31J9Fh/exec';
 
-// JSONP（読み取り用）
-function callGasGet(action, callback) {
+// JSONP（読み取り＋小データ送信用）
+function callGasGet(action, callback, data) {
   var cbName = 'cb_' + Date.now();
+  var params = 'action=' + encodeURIComponent(action) + '&callback=' + cbName;
+  if (data) {
+    for (var k in data) {
+      if (data.hasOwnProperty(k)) {
+        params += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(data[k] == null ? '' : String(data[k]));
+      }
+    }
+  }
   var script = document.createElement('script');
-  window[cbName] = function(data) {
+  window[cbName] = function(res) {
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
-    callback(data);
+    callback(res);
   };
-  script.src = GAS_URL + '?action=' + action + '&callback=' + cbName;
+  script.src = GAS_URL + '?' + params;
   script.onerror = function() {
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
@@ -624,13 +632,13 @@ function submitCancel() {
   if (!confirm('本当に取消しますか？取消後は再受付できません。')) return;
   var btn = document.getElementById('btn-cancel');
   btn.disabled = true; btn.textContent = '処理中...';
-  callGasPost('submitCancel', { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone }, function(res) {
+  callGasGet('submitCancel', function(res) {
     hide('cancel-form'); show('cancel-result');
-    if (res.found) {
+    if (res && res.found) {
       document.getElementById('cancel-result').innerHTML = '<div class="result-ok">&#10003; 取消が完了しました。</div>';
     } else {
       document.getElementById('cancel-result').innerHTML =
-        '<div class="result-ng">' + (res.message || '該当する受付が見つかりませんでした。') + '</div>' +
+        '<div class="result-ng">' + ((res && res.message) || '該当する受付が見つかりませんでした。') + '</div>' +
         '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
       var rb = document.getElementById('btn-retry');
       if (rb) rb.addEventListener('click', function() {
@@ -639,7 +647,7 @@ function submitCancel() {
       });
     }
     loadList();
-  });
+  }, { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone });
 }
 </script>
 </body>
