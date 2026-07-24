@@ -469,37 +469,34 @@ function doStep1() {
   btn.disabled = true; btn.textContent = '送信中...';
   var kana = sei + ' ' + mei;
   // 送信前にリスト件数を取得して次番号を予測
-  var btnText = btn.textContent;
-  callGasGet('getWaitingList', function(list) {
-    if (!list) {
-      // JSONP失敗時もボタンを戻して送信可能に
-      btn.disabled = false; btn.textContent = btnText; return;
-    }
-    var nextNum = !list.error ? list.length + 1 : 1;
-    var predictedWebId = 'WEB受付' + String(nextNum).padStart(3, '0');
-
-    callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
-      if (res.success) {
-        persons[currentPerson].pid = pid;
-        persons[currentPerson].kana = kana;
-        persons[currentPerson].kanaSei = sei;
-        persons[currentPerson].kanaMei = mei;
-        persons[currentPerson].birth = birth;
-        persons[currentPerson].phone = phone;
-        persons[currentPerson].type = type;
-        persons[currentPerson].webId = predictedWebId;
-        persons[currentPerson].step1Done = true;
-        myWebIds.push(predictedWebId);
-        try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
+  callGasPost('submitStep1', { type: type, pid: pid, kana: kana, kanaSei: sei, kanaMei: mei, birth: birth, phone: phone }, function(res) {
+    if (res.success) {
+      persons[currentPerson].pid = pid;
+      persons[currentPerson].kana = kana;
+      persons[currentPerson].kanaSei = sei;
+      persons[currentPerson].kanaMei = mei;
+      persons[currentPerson].birth = birth;
+      persons[currentPerson].phone = phone;
+      persons[currentPerson].type = type;
+      persons[currentPerson].webId = '受付完了';
+      persons[currentPerson].step1Done = true;
+      // 受付後にリストから実際の番号を取得
+      callGasGet('getWaitingList', function(list) {
+        if (list && !list.error && list.length > 0) {
+          var last = list[list.length - 1];
+          persons[currentPerson - (currentPerson < totalCount - 1 ? 0 : 0)].webId = last.webId;
+          myWebIds.push(last.webId);
+          try { localStorage.setItem('myWebIds_' + new Date().toLocaleDateString('ja-JP'), JSON.stringify(myWebIds)); } catch(e) {}
+        }
         loadList();
-        if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
-        else { currentPerson = 0; currentStep = 3; renderStep2(); }
-      } else {
-        alert(res.message || 'エラーが発生しました。');
-        btn.disabled = false;
-        btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
-      }
-    });
+      });
+      if (currentPerson < totalCount - 1) { currentPerson++; renderStep1(); }
+      else { currentPerson = 0; currentStep = 3; renderStep2(); }
+    } else {
+      alert(res.message || 'エラーが発生しました。');
+      btn.disabled = false;
+      btn.textContent = (totalCount > 1 && currentPerson < totalCount - 1) ? '次の方の受付へ →' : '次へ：問診票を入力する →';
+    }
   });
 }
 
