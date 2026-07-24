@@ -647,22 +647,39 @@ function submitCancel() {
   if (!confirm('本当に取消しますか？取消後は再受付できません。')) return;
   var btn = document.getElementById('btn-cancel');
   btn.disabled = true; btn.textContent = '処理中...';
-  callGasGet('submitCancel', function(res) {
-    hide('cancel-form'); show('cancel-result');
-    if (res && res.found) {
-      document.getElementById('cancel-result').innerHTML = '<div class="result-ok">&#10003; 取消が完了しました。</div>';
-    } else {
-      document.getElementById('cancel-result').innerHTML =
-        '<div class="result-ng">' + ((res && res.message) || '該当する受付が見つかりませんでした。') + '</div>' +
-        '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
-      var rb = document.getElementById('btn-retry');
-      if (rb) rb.addEventListener('click', function() {
-        hide('cancel-result'); show('cancel-form');
-        btn.disabled = false; btn.textContent = '取消を申請する';
+  // 取消をPOSTで送信後、リストを確認してキャンセル済みか検証
+  callGasPost('submitCancel', { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone }, function() {
+    btn.textContent = '確認中...';
+    setTimeout(function() {
+      callGasGet('getWaitingList', function(list) {
+        var cancelled = false;
+        if (list && !list.error) {
+          for (var i = 0; i < list.length; i++) {
+            var item = list[i];
+            if (!item.status || item.status.indexOf('キャンセル') < 0) continue;
+            var itemPid = String(item.pid || '').replace(/[^0-9]/g, '');
+            var inputPid = String(pid || '').replace(/[^0-9]/g, '');
+            if (inputPid && itemPid === inputPid) { cancelled = true; break; }
+            if (!inputPid && kanaSei && String(item.pid || '').indexOf(kanaSei) >= 0) { cancelled = true; break; }
+          }
+        }
+        hide('cancel-form'); show('cancel-result');
+        if (cancelled) {
+          document.getElementById('cancel-result').innerHTML = '<div class="result-ok">&#10003; 取消が完了しました。</div>';
+        } else {
+          document.getElementById('cancel-result').innerHTML =
+            '<div class="result-ng">該当する受付が見つかりませんでした。<br>入力内容をご確認ください。</div>' +
+            '<button class="btn btn-red" id="btn-retry" style="margin-top:12px;">もう一度試す</button>';
+          var rb = document.getElementById('btn-retry');
+          if (rb) rb.addEventListener('click', function() {
+            hide('cancel-result'); show('cancel-form');
+            btn.disabled = false; btn.textContent = '取消を申請する';
+          });
+        }
+        loadList();
       });
-    }
-    loadList();
-  }, { pid: pid, kanaSei: kanaSei, kanaMei: kanaMei, type: type, phone: phone });
+    }, 3000);
+  });
 }
 </script>
 </body>
