@@ -318,7 +318,12 @@ function callGas(action, data, callback) {
   document.body.appendChild(script);
 }
 
-var cfg = { overrideOpen: null, openHour: 8, closeHour: 10 };
+var cfg = { overrideOpen: null, openHour: 8, closeHour: 10, isTuesday: (new Date().getDay() === 2) };
+// 前回のGAS設定をキャッシュから復元
+try {
+  var cachedCfg = localStorage.getItem('gasCfg');
+  if (cachedCfg) cfg = JSON.parse(cachedCfg);
+} catch(e) {}
 var totalCount = 1;
 var currentPerson = 0;
 var currentStep = 1;
@@ -350,7 +355,10 @@ window.onload = function() {
   quickCheck();
   // GAS設定を取得して確定判定（overrideOpen反映）
   callGas('getReceptionConfig', null, function(c) {
-    if (c && !c.error) cfg = c;
+    if (c && !c.error) {
+      cfg = c;
+      try { localStorage.setItem('gasCfg', JSON.stringify(c)); } catch(e) {}
+    }
     checkOpen();
   });
   loadList();
