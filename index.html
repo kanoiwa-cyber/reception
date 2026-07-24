@@ -365,11 +365,15 @@ window.onload = function() {
   setInterval(function() { if (currentStep < 3) loadList(); }, 600000);
 };
 
-// GAS応答前の即時ローカル判定（遅延ゼロ）
+// GAS応答前の即時判定（キャッシュ優先・遅延ゼロ）
 function quickCheck() {
-  var day = new Date().getDay(); // 0=日 1=月 2=火
-  var h   = new Date().getHours();
   hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
+  // キャッシュの強制設定を最優先（スタッフ操作を即時反映）
+  if (cfg.overrideOpen === true)  { show('screen-count'); return; }
+  if (cfg.overrideOpen === false) { show('msg-closed'); hide('screen-count'); return; }
+  // 自動モード：ローカルの日時で判定
+  var day = new Date().getDay();
+  var h   = new Date().getHours();
   if (day !== 2) { show('msg-nottuesday'); hide('screen-count'); return; }
   if (h < 8)    { show('msg-waiting');    hide('screen-count'); return; }
   if (h >= 10)  { show('msg-closed');     hide('screen-count'); return; }
