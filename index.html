@@ -346,8 +346,9 @@ window.onload = function() {
   document.getElementById('c-type').addEventListener('change', onCancelTypeChange);
   document.getElementById('btn-cancel').addEventListener('click', submitCancel);
 
-  // GAS設定を取得してから表示（フラッシュ防止）
-  document.getElementById('screen-count').classList.add('hidden');
+  // まずローカルで即時判定（ゼロ遅延）
+  quickCheck();
+  // GAS設定を取得して確定判定（overrideOpen反映）
   callGas('getReceptionConfig', null, function(c) {
     if (c && !c.error) cfg = c;
     checkOpen();
@@ -356,17 +357,26 @@ window.onload = function() {
   setInterval(function() { if (currentStep < 3) loadList(); }, 600000);
 };
 
+// GAS応答前の即時ローカル判定（遅延ゼロ）
+function quickCheck() {
+  var day = new Date().getDay(); // 0=日 1=月 2=火
+  var h   = new Date().getHours();
+  hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
+  if (day !== 2) { show('msg-nottuesday'); hide('screen-count'); return; }
+  if (h < 8)    { show('msg-waiting');    hide('screen-count'); return; }
+  if (h >= 10)  { show('msg-closed');     hide('screen-count'); return; }
+  show('screen-count');
+}
+
+// GAS応答後の確定判定（overrideOpenを反映）
 function checkOpen() {
   hide('msg-closed'); hide('msg-waiting'); hide('msg-nottuesday');
-  // 強制オープン（スタッフ操作）
-  if (cfg.overrideOpen === true) { show('screen-count'); return; }
-  // 強制クローズ（スタッフ操作）
+  if (cfg.overrideOpen === true)  { show('screen-count'); return; }
   if (cfg.overrideOpen === false) { show('msg-closed'); hide('screen-count'); return; }
-  // 自動モード：GASから取得した曜日・時刻で判定
   if (!cfg.isTuesday) { show('msg-nottuesday'); hide('screen-count'); return; }
   var h = new Date().getHours();
-  if (h < cfg.openHour) { show('msg-waiting'); hide('screen-count'); return; }
-  if (h >= cfg.closeHour) { show('msg-closed'); hide('screen-count'); return; }
+  if (h < cfg.openHour)  { show('msg-waiting'); hide('screen-count'); return; }
+  if (h >= cfg.closeHour){ show('msg-closed');  hide('screen-count'); return; }
   show('screen-count');
 }
 function switchTab(tab) {
