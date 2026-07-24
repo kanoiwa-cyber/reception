@@ -315,6 +315,7 @@ function callGas(action, data, callback) {
     callback({ success: false, error: 'network', message: '通信エラーが発生しました。' });
   };
   script.src = GAS_URL + '?' + params;
+  console.log('[callGas] ' + action + ' URL:', script.src.substring(0, 120) + '...');
   document.body.appendChild(script);
 }
 
