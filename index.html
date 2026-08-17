@@ -61,6 +61,8 @@
   .sides{display:flex;flex-direction:column;gap:18px;margin-top:8px;}
   .sidegroup{border:1.5px solid var(--line);border-radius:16px;padding:14px 14px 16px;background:#FCFDFD;}
   .sidegroup.plain{border:none;background:none;padding:0;}
+  .bothhint{font-size:17px;font-weight:700;color:#7A4E12;background:var(--amber-soft);
+            border-radius:10px;padding:10px 14px;margin:2px 0 14px;}
   .sidegroup .opts{margin-top:0;}
   .sidelabel{display:inline-block;font-size:17px;font-weight:800;padding:5px 14px;border-radius:9px;margin-bottom:12px;}
   .sidelabel.side-R{color:#0E4A43;background:var(--accent-soft);}
@@ -378,8 +380,9 @@ function scrQuiz(){
   el.innerHTML = `
     <div class="eyebrow">${esc(q.group)}</div>
     <div class="qtext">${esc(q.text)}</div>
+    ${ both ? `<div class="bothhint">右ひざ・左ひざ それぞれで回答を選んでください</div>` : '' }
     ${ both
-        ? `<div class="sides">${group('R','右ひざ')}${group('L','左ひざ')}</div>`
+        ? `<div class="sides">${group('R','右ひざの回答')}${group('L','左ひざの回答')}</div>`
         : group('', '') }
     <div class="btnrow">
       <button class="btn ghost" id="back">◀ もどる</button>
@@ -427,6 +430,7 @@ function scrVas(){
   el.innerHTML = `
     <div class="eyebrow">痛みの程度（VAS）</div>
     <div class="qtext">今の膝の痛みは、どのくらいですか？<br><span style="font-size:20px;font-weight:600;color:var(--muted)">0（痛みなし）〜 10（考えられる最もひどい痛み）で選んでください。</span></div>
+    ${ both ? `<div class="bothhint">右ひざ・左ひざ それぞれで選んでください</div>` : '' }
     ${ both ? `<div class="sides vsides">${grid('R')}${grid('L')}</div>` : grid('') }
     <div class="vasends"><span>0：痛みなし</span><span>10：最もひどい痛み</span></div>
     <div class="btnrow">
