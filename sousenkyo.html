@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>総選挙 一般投票・名づけ親募集｜加納岩総合病院 公式マスコットキャラクター総選挙</title>
+<meta name="description" content="加納岩総合病院 公式マスコットキャラクター総選挙。職員投票で選ばれたTOP6の中から、お気に入りのキャラクターに1票を。名前のご提案（名づけ親募集）も同時に受け付けます。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--bg-deep:#140203;--panel:#3f0b10;--maroon:#9a1419;--red:#b81d24;--gold:#e4c05a;--gold-bright:#f5e08c;--gold-deep:#b78f2d;--gold-line:#c9a848;
+    --cream:#f6ecce;--cream-2:#fcf6e6;--cream-3:#fbeecd;--line-cream:#e2cf9f;--ink-cream:#f4e6bf;--ink-cream-soft:#e6cf9c;--ink:#4a2c12;--ink-soft:#7a5228;
+    --gold-grad:linear-gradient(180deg,#f7e79a 0%,#e3bf53 48%,#c39b2e 100%);font-synthesis-weight:none;}
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg-deep);color:var(--ink-cream);line-height:1.8;
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic Medium","Yu Gothic",Meiryo,"Noto Sans JP",sans-serif;-webkit-font-smoothing:antialiased;}
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(circle, rgba(245,224,140,.5) 1px, transparent 1.7px),radial-gradient(circle, rgba(245,224,140,.28) 1px, transparent 1.7px);
+    background-size:96px 96px,150px 150px;background-position:0 0,50px 70px;}
+  h1,h2,h3,.maru{font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;}
+  a{color:var(--gold-bright);}
+  :focus-visible{outline:3px solid #2a6fd6;outline-offset:2px;border-radius:6px;}
+  [hidden]{display:none !important;}
+  .wrap{max-width:900px;margin-inline:auto;padding-inline:18px;position:relative;z-index:1;}
+
+  .topbar{background:linear-gradient(180deg,#3a0a0c,#1c0304);border-bottom:1px solid var(--gold-deep);position:relative;z-index:2;}
+  .topbar::before{content:"";display:block;height:2px;background:var(--gold-grad);}
+  .topbar__inner{max-width:900px;margin-inline:auto;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .brand{text-decoration:none;line-height:1.2;}
+  .brand small{display:block;font-size:.68rem;font-weight:700;letter-spacing:.1em;color:var(--gold-bright);}
+  .brand b{font-family:"Zen Maru Gothic",sans-serif;font-weight:900;font-size:1.05rem;color:#fff6e2;}
+  .back{font-size:.84rem;font-weight:700;text-decoration:none;padding:6px 14px;border-radius:999px;border:1px solid var(--gold-line);white-space:nowrap;}
+
+  .head{text-align:center;padding:36px 0 8px;}
+  .head .kicker{display:inline-block;margin:0 0 10px;padding:5px 18px;border-radius:999px;border:1px solid var(--gold-line);background:rgba(20,2,3,.55);color:var(--gold-bright);font-weight:700;font-size:.86rem;letter-spacing:.06em;}
+  .head h1{margin:0;font-weight:900;color:#fff5df;font-size:clamp(1.6rem,6vw,2.5rem);line-height:1.35;text-shadow:0 3px 12px rgba(0,0,0,.6);}
+  .head p{margin:12px auto 0;max-width:640px;color:var(--ink-cream-soft);font-size:.97rem;}
+  .period{display:inline-flex;flex-direction:column;align-items:center;margin:16px auto 0;padding:10px 28px;border-radius:14px;background:rgba(20,2,3,.55);border:2px dashed var(--gold);}
+  .period small{font-size:.78rem;color:var(--gold-bright);font-weight:700;letter-spacing:.2em;}
+  .period b{font-family:"Zen Maru Gothic",sans-serif;font-weight:900;font-size:clamp(1.05rem,4.2vw,1.4rem);color:#fff5df;}
+
+  .card{background:linear-gradient(180deg,var(--cream-2),var(--cream));color:var(--ink);border:2px solid var(--gold-line);border-radius:18px;padding:clamp(20px,4vw,34px);margin-top:22px;box-shadow:0 10px 28px rgba(0,0,0,.45);}
+  .step{display:flex;align-items:center;gap:12px;margin:0 0 6px;color:var(--maroon);font-size:1.2rem;}
+  .step i{font-style:normal;flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:900;color:#5a1015;background:var(--gold-grad);border:1.5px solid var(--gold-deep);}
+  .hint{font-size:.88rem;color:var(--ink-soft);margin:0 0 16px;line-height:1.7;}
+
+  .grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .pick{position:relative;display:block;cursor:pointer;border:2px solid var(--line-cream);border-radius:14px;overflow:hidden;background:#fffdf7;transition:border-color .15s,box-shadow .15s;}
+  .pick input{position:absolute;opacity:0;pointer-events:none;}
+  .pick img{display:block;width:100%;height:auto;aspect-ratio:1/1;background:#fff;}
+  .pick span{display:block;padding:9px 10px 11px;text-align:center;line-height:1.4;}
+  .pick span b{display:block;font-family:"Zen Maru Gothic",sans-serif;font-size:1.02rem;color:var(--maroon);}
+  .pick span small{display:block;font-size:.76rem;color:var(--ink-soft);margin-top:2px;}
+  .pick:hover{border-color:var(--gold-deep);}
+  .pick:has(input:checked){border-color:var(--maroon);box-shadow:0 0 0 3px rgba(154,20,25,.28);}
+  .pick:has(input:checked)::after{content:"✓ 選択中";position:absolute;right:8px;top:8px;background:var(--maroon);color:#fff;font-size:.74rem;font-weight:700;padding:2px 10px;border-radius:999px;}
+  .pick:has(input:focus-visible){outline:3px solid #2a6fd6;outline-offset:2px;}
+  .pick .more{position:absolute;left:8px;top:8px;font-size:.72rem;font-weight:700;background:rgba(255,253,247,.92);color:var(--ink-soft);padding:2px 9px;border-radius:999px;border:1px solid var(--line-cream);text-decoration:none;}
+
+  .field{margin-bottom:18px;} .field:last-child{margin-bottom:0;}
+  label.lab{display:block;font-weight:700;font-size:.95rem;margin-bottom:6px;}
+  label.lab small{font-weight:400;color:var(--ink-soft);margin-left:6px;}
+  .req{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--red);color:#fff;margin-left:6px;vertical-align:middle;}
+  .opt{display:inline-block;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:#eaddb8;color:var(--ink-soft);margin-left:6px;vertical-align:middle;}
+  input[type=text],select{width:100%;font:inherit;font-size:1rem;padding:12px 14px;border:1.5px solid #cdb98a;border-radius:10px;background:#fffdf7;color:var(--ink);}
+  input:focus,select:focus{border-color:var(--maroon);outline:none;box-shadow:0 0 0 3px rgba(154,20,25,.15);}
+  .err{display:none;color:var(--red);font-size:.82rem;font-weight:700;margin-top:5px;}
+  .has-error .err{display:block;} .has-error input,.has-error select{border-color:var(--red);}
+  .namebox{background:#fffdf7;border:1.5px solid var(--line-cream);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:.9rem;}
+  .namebox b{color:var(--maroon);}
+  .namebox .orig{margin-top:6px;font-family:"Zen Maru Gothic",sans-serif;font-size:1.05rem;color:var(--maroon);}
+  .keep{display:flex;align-items:center;gap:10px;margin:8px 0 12px;font-size:.92rem;cursor:pointer;}
+  .keep input{accent-color:var(--maroon);width:18px;height:18px;}
+
+  .summary{background:#fffdf7;border:1.5px solid var(--line-cream);border-radius:12px;padding:14px 18px;font-size:.95rem;margin-bottom:18px;}
+  .summary dt{font-size:.78rem;color:var(--ink-soft);margin-top:6px;} .summary dd{margin:0;font-weight:700;color:var(--maroon);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;font-family:"Zen Maru Gothic",sans-serif;font-weight:900;font-size:1.1rem;color:#5a1015;background:var(--gold-grad);border:1.5px solid var(--gold-deep);border-radius:999px;padding:15px 34px;width:100%;max-width:380px;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.3);text-decoration:none;}
+  .btn[disabled]{opacity:.6;cursor:default;}
+  .center{text-align:center;}
+  .msg{display:none;margin:16px auto 0;max-width:560px;padding:12px 16px;border-radius:10px;font-weight:700;font-size:.92rem;background:#fdecec;color:#8f1216;border:1.5px solid #e6a9ab;}
+  .msg.show{display:block;}
+  .note{font-size:.8rem;color:var(--ink-soft);margin:14px 0 0;line-height:1.7;}
+
+  .panel{max-width:600px;margin:60px auto;text-align:center;}
+  .panel h2{margin:0 0 10px;color:var(--maroon);font-size:1.45rem;}
+  .panel p{margin:0 0 8px;}
+  .panel .when{display:inline-block;margin:6px 0 16px;padding:10px 24px;border-radius:12px;border:2px dashed var(--gold-line);background:#fffdf7;font-weight:700;font-size:1.1rem;color:var(--maroon);}
+
+  footer{margin-top:50px;border-top:3px solid var(--gold-line);background:#120203;text-align:center;padding:28px 18px;font-size:.82rem;color:var(--ink-cream-soft);position:relative;z-index:1;}
+  footer b{display:block;color:#fff5df;font-size:.95rem;margin-bottom:4px;}
+  @media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr);} .brand small{display:none;}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="brand" href="./"><small>★ 公式マスコットキャラクター総選挙</small><b>加納岩総合病院</b></a>
+    <a class="back" href="./">総選挙のページへ戻る</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="card panel" id="closed" hidden>
+    <h2>総選挙 一般投票・名づけ親募集</h2>
+    <div class="when" id="closedWhen"></div>
+    <p id="closedText"></p>
+    <p style="margin-top:16px;"><a href="./" style="color:var(--maroon);font-weight:700;">総選挙のページへ戻る</a></p>
+  </div>
+
+  <div class="card panel" id="done" hidden>
+    <h2>投票を受け付けました</h2>
+    <p>ご参加ありがとうございました。</p>
+    <dl class="summary" id="doneSummary" style="text-align:left;"></dl>
+    <p class="note">投票は1人1票です。結果は集計のうえ、2027年の年明けにこのWEBサイトで発表します。</p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="head">
+      <span class="kicker">職員投票で選ばれた TOP6 が決定！（同票のため5作品→6作品）</span>
+      <h1>総選挙 一般投票<br>＆ 名づけ親募集</h1>
+      <p>加納岩総合病院の“顔”を、みなさまの1票で決めます。地域のみなさま、患者さん・ご家族、職員など、どなたでも投票いただけます。あわせて、キャラクターの名前もご提案ください。</p>
+      <div class="period"><small>投票期間</small><b>11月8日（日）〜 12月11日（金）23:59</b></div>
+    </div>
+
+    <form id="form" novalidate>
+      <section class="card" id="f-entry">
+        <h2 class="step"><i>1</i>お気に入りのキャラクターを1つ選ぶ</h2>
+        <p class="hint">タップして選んでください。「くわしく」から、名前の由来・エピソードが読めます。</p>
+        <ul class="grid" id="grid"></ul>
+      </section>
+
+      <section class="card">
+        <h2 class="step"><i>2</i>名前を付ける（名づけ親募集）</h2>
+        <p class="hint">選んだキャラクターに、あなたが「こんな名前はどう？」と思う名前を付けてください。原案の名前のままがよい方は、チェックを入れるだけで大丈夫です。寄せられた名前を候補に、院長・幹部・広報委員長による審査で決定します。</p>
+        <div class="namebox" id="namebox">まず、上でキャラクターを選んでください。</div>
+        <label class="keep" id="keepWrap" hidden><input type="checkbox" id="keep"> 原案の名前のままでよい（この名前を推します）</label>
+        <div class="field" id="f-name">
+          <label class="lab" for="nameIdea">あなたが付けたい名前<span class="req">必須</span><small>20文字まで</small></label>
+          <input type="text" id="nameIdea" maxlength="20" autocomplete="off" placeholder="例：かのっぴ、いわまる など">
+          <div class="err">名前を入力するか、「原案の名前のままでよい」にチェックを入れてください。</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="step"><i>3</i>あなたについて</h2>
+        <div class="field" id="f-voter">
+          <label class="lab" for="voter">お名前（ニックネームでも可）<span class="req">必須</span></label>
+          <input type="text" id="voter" maxlength="30" autocomplete="name">
+          <div class="err">お名前またはニックネームを入力してください。</div>
+        </div>
+        <div class="field" id="f-rel">
+          <label class="lab" for="relation">あなたについて<span class="req">必須</span></label>
+          <select id="relation">
+            <option value="">選んでください</option>
+            <option>患者様・ご家族</option>
+            <option>地域にお住まいの方</option>
+            <option>社会医療法人加納岩の職員・ご家族</option>
+            <option>その他</option>
+          </select>
+          <div class="err">あてはまるものを選んでください。</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="step"><i>4</i>内容を確認して投票する</h2>
+        <dl class="summary" id="summary"><dd>まだキャラクターが選ばれていません。</dd></dl>
+        <div class="center"><button class="btn" type="submit" id="submit">この内容で投票する</button></div>
+        <div class="msg" id="msg" role="alert"></div>
+        <p class="note center">※ 投票は1人1票です。送信後のやり直しはできません。<br>※ お名前は本企画の運営にのみ使用し、投票内容とあわせて公表することはありません。</p>
+      </section>
+    </form>
+  </div>
+</main>
+
+<footer>
+  <b>加納岩総合病院　公式マスコットキャラクター総選挙</b>
+  お問い合わせ：加納岩総合病院　広報委員長　0553-22-2511（代）
+</footer>
+
+<script>
+/* ▼▼▼ 設定はここだけ ▼▼▼
+   総選挙用の Google Apps Script（Code_sousenkyo.gs）をウェブアプリとして公開し、「/exec」のURLを貼り付けてください。
+   空（""）のままだと送信せず、画面上で内容だけ確認できる「確認モード」で動きます。 */
+const VOTE_ENDPOINT = "https://script.google.com/macros/s/AKfycbz1ROa0YF-D9cZnwlMlkS-c9EgghOhwK-mXx_iXitinhXjfQD01aAV46Xff-G6zmOvF/exec";
+const OPEN  = new Date("2026-11-08T10:00:00+09:00");
+const CLOSE = new Date("2026-12-11T23:59:59+09:00");
+/* 院内投票で選ばれた TOP6（表示順）※同票のため5作品→6作品 */
+const TOP6 = [
+  { no:2,  name:"かのちゃん（ぶどう）" },
+  { no:3,  name:"" },
+  { no:27, name:"メタセコイヤ君" },
+  { no:47, name:"かのん" },
+  { no:53, name:"カノンくん" },
+  { no:56, name:"かのういわん" }
+];
+/* ▲▲▲ ここまで ▲▲▲  公開前の動作確認は、URLの末尾に ?preview=1 を付けてください。 */
+
+(function(){
+  const $ = id => document.getElementById(id);
+  const preview = /[?&]preview=1/.test(location.search), now = new Date();
+  function closed(when, text){ $("closedWhen").textContent = when; $("closedText").textContent = text; $("closed").hidden = false; }
+  if(!preview && now < OPEN)  return closed("11月8日（日）10時 スタート", "ただいま準備中です。TOP6 の発表とあわせて、このページで投票と名づけ親の受付を始めます。");
+  if(!preview && now > CLOSE) return closed("12月11日（金）をもって終了しました", "たくさんのご投票、ありがとうございました。結果は集計のうえ、2027年の年明けにこのWEBサイトで発表します。こうご期待！");
+  let device = "";
+  try{
+    if(localStorage.getItem("kanoiwa_sousenkyo_voted") && !preview){ $("doneSummary").innerHTML = "<dd>この端末からは、すでに投票が完了しています。</dd>"; $("done").hidden = false; return; }
+    device = localStorage.getItem("kanoiwa_device") || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    localStorage.setItem("kanoiwa_device", device);
+  }catch(e){}
+  $("app").hidden = false;
+
+  const pad = n => ("0" + n).slice(-2);
+  const dispName = d => d.name || "（名前はまだありません）";
+  TOP6.forEach(function(d){
+    const li = document.createElement("li"), lab = document.createElement("label"), inp = document.createElement("input"),
+          img = document.createElement("img"), sp = document.createElement("span"), b = document.createElement("b"), sm = document.createElement("small"), more = document.createElement("a");
+    lab.className = "pick"; inp.type = "radio"; inp.name = "entry"; inp.value = d.no;
+    img.src = "No" + pad(d.no) + ".jpg"; img.width = 600; img.height = 600; img.decoding = "async"; img.alt = "作品番号" + d.no + (d.name ? "「" + d.name + "」" : "");
+    b.textContent = dispName(d); sm.textContent = "作品番号 No." + pad(d.no); sp.append(b, sm);
+    more.className = "more"; more.href = "entries.html#no" + pad(d.no); more.target = "_blank"; more.rel = "noopener"; more.textContent = "くわしく";
+    more.addEventListener("click", ev => ev.stopPropagation());
+    lab.append(inp, img, sp, more); li.appendChild(lab); $("grid").appendChild(li);
+  });
+
+  function picked(){ const r = document.querySelector('input[name="entry"]:checked'); return r ? TOP6.find(d => d.no == r.value) : null; }
+  function label(d){ return "No." + pad(d.no) + "　" + dispName(d); }
+  function finalName(){ const d = picked(); if(!d) return ""; return $("keep").checked ? (d.name || "") : $("nameIdea").value.trim(); }
+  function refresh(){
+    const d = picked(); hideMsg();
+    if(!d){ $("summary").innerHTML = "<dd>まだキャラクターが選ばれていません。</dd>"; return; }
+    const nb = $("namebox");
+    nb.innerHTML = ""; const t = document.createElement("div"); t.innerHTML = "選んだキャラクター：<b></b>"; t.querySelector("b").textContent = label(d); nb.appendChild(t);
+    const o = document.createElement("div"); o.className = "orig";
+    o.textContent = d.name ? "原案の名前：「" + d.name + "」" : "原案に名前はありません。ぜひ名前を付けてください。"; nb.appendChild(o);
+    $("keepWrap").hidden = !d.name; if(!d.name){ $("keep").checked = false; }
+    $("nameIdea").disabled = $("keep").checked; if($("keep").checked) $("nameIdea").value = "";
+    const s = $("summary"); s.innerHTML = "";
+    [["投票するキャラクター", label(d)], ["付ける名前", finalName() ? finalName() + ($("keep").checked ? "（原案のまま）" : "") : "（未入力）"]].forEach(function(p){
+      const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = p[0]; dd.textContent = p[1]; s.append(dt, dd);
+    });
+  }
+  $("grid").addEventListener("change", refresh); $("keep").addEventListener("change", refresh); $("nameIdea").addEventListener("input", refresh);
+  ["f-name","f-voter","f-rel"].forEach(id => $(id).addEventListener("input", () => $(id).classList.remove("has-error")));
+  $("keep").addEventListener("change", () => $("f-name").classList.remove("has-error"));
+  function showMsg(t){ $("msg").textContent = t; $("msg").classList.add("show"); }
+  function hideMsg(){ $("msg").classList.remove("show"); }
+
+  $("form").addEventListener("submit", async function(ev){
+    ev.preventDefault(); hideMsg();
+    const d = picked();
+    if(!d){ showMsg("キャラクターを1つ選んでください。"); $("f-entry").scrollIntoView({behavior:"smooth"}); return; }
+    const nameIdea = finalName(), voter = $("voter").value.trim(), rel = $("relation").value;
+    let bad = null;
+    [["f-name", !nameIdea], ["f-voter", !voter], ["f-rel", !rel]].forEach(function(p){ $(p[0]).classList.toggle("has-error", p[1]); if(p[1] && !bad) bad = p[0]; });
+    if(bad){ $(bad).scrollIntoView({behavior:"smooth", block:"center"}); return; }
+    if(!confirm(label(d) + " に投票し、名前「" + nameIdea + "」を提案します。\n送信後は変更できません。よろしいですか？")) return;
+
+    if(!VOTE_ENDPOINT){ showMsg("【確認モード】送信先が未設定のため、送信はしていません。　" + label(d) + "／名前：" + nameIdea + "／" + voter + "（" + rel + "）"); return; }
+    const btn = $("submit"); btn.disabled = true; btn.textContent = "送信中…";
+    try{
+      const res = await fetch(VOTE_ENDPOINT, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+        body: JSON.stringify({ entryNo:d.no, nameIdea:nameIdea, keepOriginal:$("keep").checked, voter:voter, relation:rel, device:device }) });
+      const r = await res.json();
+      if(r.ok){
+        try{ localStorage.setItem("kanoiwa_sousenkyo_voted","1"); }catch(e){}
+        $("doneSummary").innerHTML = $("summary").innerHTML; $("app").hidden = true; $("done").hidden = false; window.scrollTo(0,0);
+      } else { showMsg(r.message || "投票を受け付けられませんでした。"); }
+    }catch(e){ showMsg("通信に失敗しました。電波の良い場所で、もう一度お試しください。"); }
+    btn.disabled = false; btn.textContent = "この内容で投票する";
+  });
+})();
+</script>
+</body>
+</html>
