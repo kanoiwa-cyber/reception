@@ -1,0 +1,23 @@
+{
+  "name": "staff-notice-pwa",
+  "version": "0.2.0",
+  "description": "加納岩総合病院 職員ポータル（お知らせ・ポイント・休暇・体調報告・緊急連絡・部署ページ）",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "vapid": "node -e \"const w=require('web-push');const k=w.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey)\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.11.1",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "web-push": "^3.6.7"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
