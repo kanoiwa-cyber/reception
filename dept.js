@@ -37,7 +37,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_dept_files ON dept_files(department, category, month);
 `);
 
-const CATEGORIES = { shift: 'シフト表', duty: '掃除・日誌担当表', other: 'その他の資料' };
+const CATEGORIES = { shift: 'シフト表', other: '情報共有', duty: '掃除・日誌担当表（旧）' }; // duty は過去データ表示用。新規登録は shift / other のみ
 const ALLOWED = {
   'application/pdf': '.pdf',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
@@ -72,6 +72,11 @@ const canEditNote = (u, key) => !!(u.is_admin || belongs(u, key));           // 
 const canManageFiles = (u, key) => !!(u.is_admin || (canEditFiles(u) && belongs(u, key))); // ファイル：その部署の権限者
 const pageList = () => dbm.DEPARTMENTS.flatMap((d) => [{ key: d.name, department: d.name, section: '', label: d.name }, ...d.sections.map((s) => ({ key: `${d.name}/${s}`, department: d.name, section: s, label: `${d.name} ${s}` }))]);
 
+// 部署ごとのストレージ上限（MB）。環境変数 DEPT_QUOTA_MB で変更可。ディスク1GB ÷ 部署数 を目安に 50MB
+const QUOTA = Number(process.env.DEPT_QUOTA_MB || 50) * 1024 * 1024;
+const usageStmt = db.prepare("SELECT COALESCE(SUM(size),0) AS b, COUNT(*) AS n FROM dept_files WHERE department = ? OR department LIKE ? || '/%'");
+const usageAllStmt = db.prepare('SELECT COALESCE(SUM(size),0) AS b, COUNT(*) AS n FROM dept_files');
+const storage = (key) => { const base = parseKey(key).department; const u = usageStmt.get(base, base); return { department: base, used: u.b, files: u.n, quota: QUOTA }; };
 const pubFile = (f) => ({ id: f.id, department: f.department, category: f.category, categoryLabel: CATEGORIES[f.category], month: f.month, title: f.title, origName: f.orig_name, mime: f.mime, size: f.size, uploaderName: f.uploaderName || '', createdAt: f.created_at, url: `/api/dept/files/${f.id}/download` });
 const pubNote = (n) => (n ? { day: n.day, body: n.body, editorName: n.editorName || '', updatedAt: n.updated_at } : null);
 
@@ -86,11 +91,15 @@ module.exports = {
       files: stmts.fileList.all(key).map(pubFile),
       members: stmts.members.all(department, section, section),
       categories: CATEGORIES,
+      storage: storage(key),
     };
   },
   getNote: (dept, day) => pubNote(stmts.noteGet.get(dept, day)),
   saveNote: (dept, day, body, userId) => { stmts.noteUpsert.run(dept, day, String(body || '').trim().slice(0, 4000), userId); return pubNote(stmts.noteGet.get(dept, day)); },
+  storage, usageAll: () => usageAllStmt.get(),
   addFile: ({ department, category, month, title, origName, storedName, mime, size, userId }) => {
+    const st = storage(department);
+    if (st.used + size > st.quota) return { error: `${st.department}のストレージ上限（${Math.round(st.quota / 1048576)}MB）を超えます。古いファイルを削除してから登録してください（現在 ${(st.used / 1048576).toFixed(1)}MB）` };
     if (!CATEGORIES[category]) return { error: '種類を選択してください' };
     if ((category === 'shift' || category === 'duty') && !/^\d{4}-\d{2}$/.test(month || '')) return { error: '対象月を選択してください' };
     const info = stmts.fileInsert.run(department, category, month || '', String(title || origName).trim().slice(0, 100), origName, storedName, mime, size, userId);

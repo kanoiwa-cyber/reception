@@ -5,7 +5,7 @@
  *  3. プッシュ通知の受信と、タップ時のアプリ起動
  * 更新時は下の CACHE_VERSION を上げると、古いキャッシュが自動で消える
  */
-const CACHE_VERSION = 'v29'; // 職員番号0なし・PW数字4桁
+const CACHE_VERSION = 'v39'; // 院内資料（写真・PDF登録）・部署ページ統一（掲示板・情報共有）・10秒自動更新
 const CACHE_NAME = `staff-notice-${CACHE_VERSION}`;
 const OFFLINE_FALLBACK = ['/', '/index.html', '/app.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/apple-touch-icon.png', '/img/logo_mark.png', '/img/logo_jp.png', '/img/logo_full.png', '/img/wave_main.png', '/img/wave_pink.png', '/img/wave_yellow.png', '/img/wave_salmon.png', '/img/wanko/face_circle.png', '/img/wanko/ganbaru.png', '/img/wanko/arigatou.png', '/img/wanko/makasete.png', '/img/wanko/tanoshii.png', '/img/wanko/mirai.png', '/img/wanko/main.jpg'];
 

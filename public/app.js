@@ -20,7 +20,7 @@
   const LAST_SEEN_KEY = 'lastSeenNoticeId';
   const CAT = { important: '重要', general: '一般', department: '部門別' };
   const TAB_LABEL = { learn: '知る・学ぶ', tools: 'お役立ち', culture: '（旧）カルチャー・非表示' }; // culture タブは廃止。管理モードで旧記事を確認・削除できるよう残す
-  const KIND_LABEL = { checkin: '出社ポイント', lottery: 'デイリーくじ', steps: '歩数目標達成', initial: '初期ポイント', admin: '管理者付与' };
+  const KIND_LABEL = { checkin: '体調報告', lottery: 'デイリーくじ', steps: '歩数目標達成', initial: '初期ポイント', admin: '管理者付与', training: '研修受講', survey: 'アンケート回答', thanks: 'サンクスポイント', thanks_sent: 'サンクスポイントを贈った', referral: 'リファラル（紹介）', hired: 'リファラル（採用）' };
   const deptLabel = (n) => (n.category === 'department' ? n.department.replace('/', ' ') : CAT[n.category]);
 
   // ---- 共通 ---------------------------------------------------------------
@@ -42,21 +42,35 @@
   const isAdmin = () => !!(state.user && state.user.isAdmin);
   // ポータル内リンク（/?view=leave など）。記事・リンクのURLに書くと画面内で遷移する
   const isInternal = (url) => /^\/\?view=/.test(url || '');
-  const INTERNAL_VIEWS = ['leave', 'approve', 'health', 'healthReport', 'messages', 'dept', 'schedule', 'schedGroups', 'alerts', 'training', 'surveys'];
+  const LEAVE_READY = false; // 休暇申請は準備中（クロノスで運用中）。公開するときは true にする
+  const INTERNAL_VIEWS = ['leave', 'approve', 'health', 'healthReport', 'messages', 'dept', 'schedule', 'schedGroups', 'alerts', 'training', 'surveys', 'thanks', 'referral', 'points', 'notices'];
   // ポータル側で固定表示するリンク（seed.js に依存しない。管理モードで登録したリンクと合わせて表示される）
   const FIXED_LINKS = [
-    { tab: 'tools', section: 'よく使うシステム', title: '休暇届', icon: '休', note: '年休の残数・休暇の申請', url: '/?view=leave' },
+    { tab: 'tools', section: 'よく使うシステム', title: '休暇届', icon: '休', note: '準備中（当面はクロノスで申請）', url: '/?view=leave', soon: true },
     { tab: 'tools', section: 'よく使うシステム', title: 'e-ラーニング', icon: '学', note: '学研メディカルサポート', url: 'https://gakken-meds.jp/login/' },
-    { tab: 'tools', section: 'よく使うシステム', title: '給与明細', icon: '給', note: 'Web給与明細（ログインが必要）', url: 'https://es.prosrv-web.jp/portal/view/ptu/ptuLgiShr000.xhtml' },
+    { tab: 'tools', section: 'よく使うシステム', title: '給与明細', icon: '給', note: 'Web給与明細（ログインが必要）', url: 'https://es.prosrv-web.jp/portal/ca1265126a7c4509a79fe484dd4f9ee4' },
+    { tab: 'tools', section: 'よく使うシステム', title: '安否確認（院内）', icon: '安', note: '災害時の安否確認・緊急連絡の回答', url: '/?view=alerts' },
+    { tab: 'tools', section: 'よく使うシステム', title: 'e-革新 ログイン', icon: '革', note: '企業コード 40500181309', url: 'https://www3.e-kakushin.com/emember/servicetop.do?p=init' },
+    { tab: 'tools', section: 'よく使うシステム', title: 'EMISポータルサイト', icon: 'E', note: '広域災害救急医療情報システム（厚生労働省）', url: 'https://www.emis.mhlw.go.jp/public/s/' },
     { tab: 'tools', section: 'よく使うシステム', title: '病院サイト', icon: '病', note: 'kanoiwa-hospital.or.jp', url: 'https://kanoiwa-hospital.or.jp/' },
     { tab: 'tools', section: 'よく使うシステム', title: '病院Instagram', icon: 'In', note: '@kanoiwa_hospital', url: 'https://www.instagram.com/kanoiwa_hospital/' },
     { tab: 'tools', section: '病院サイトの情報', title: '休診情報', note: '病院サイトを開きます', url: 'https://kanoiwa-hospital.or.jp/?p=2300' },
     { tab: 'tools', section: '病院サイトの情報', title: '外来担当表', note: '病院サイトを開きます', url: 'https://kanoiwa-hospital.or.jp/?p=4610' },
-    { tab: 'tools', section: '職員食堂', title: '職員食堂 週間メニュー', note: '営業時間 11:30〜14:30', url: '/docs/shokudo-menu.pdf' },
   ].map((l, i) => ({ id: -(i + 1), kind: 'link', ...l }));
+  // 院内資料の枠（写真・PDFを登録する）。中身は /api/shared から。サーバー側 shared.js の SLOTS と同じ順
+  const SHARED_SLOTS = [
+    { key: 'shokudo', section: '職員食堂', title: '職員食堂・売店弁当メニュー' },
+    { key: 'oncall', section: '当直・救急', title: '当直オンコール表' },
+    { key: 'kyujitsu', section: '当直・救急', title: '東山梨地域休日救急当直表' },
+    { key: 'bcp', section: 'マニュアル', title: '停電時BCP対応マニュアル' },
+    { key: 'kansen', section: 'マニュアル', title: '感染対策マニュアル' },
+    { key: 'saigai', section: 'マニュアル', title: '災害対策マニュアル' },
+  ].map((l, i) => ({ id: -(100 + i), kind: 'slot', tab: 'tools', ...l }));
+  // 表示しない旧記事（タイトルにこの言葉を含むもの）
+  const HIDDEN_KEYWORDS = ['内線', '福利厚生', '食堂', '電子カルテ', 'BCP', 'BPC', '感染対策マニュアル', '接遇', '災害対策マニュアル', 'オンコール', '休日救急'];
   // 表示しない旧記事（タイトル一致）
-  const HIDDEN_TITLES = ['転倒・転落予防 研修スライド', 'BLS（一次救命処置）復習動画', 'ハラスメント防止研修（全職員必須）'];
-  const allContents = () => [...FIXED_LINKS, ...state.contents.filter((c) => !HIDDEN_TITLES.includes(c.title) && !FIXED_LINKS.some((f) => f.title === c.title && f.tab === c.tab))];
+  const HIDDEN_TITLES = ['転倒・転落予防 研修スライド', 'BLS（一次救命処置）復習動画', 'ハラスメント防止研修（全職員必須）', '電子カルテ操作ガイド', '院内ポータル（温トラネット）', 'インシデント報告システム', 'インシデント報告ｼｽﾃﾑ', '勤怠管理システム', '院内連絡先（内線）'];
+  const allContents = () => [...FIXED_LINKS, ...SHARED_SLOTS, ...state.contents.filter((c) => !HIDDEN_TITLES.includes(c.title) && !HIDDEN_KEYWORDS.some((k) => c.title.includes(k)) && !FIXED_LINKS.some((f) => f.title === c.title && f.tab === c.tab))];
 
   function fmtDate(s, withTime) {
     const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s || '');
@@ -82,12 +96,13 @@
 
   // ---- 画面切替 -----------------------------------------------------------
   function render(view, params = {}) {
+    if (view !== 'dept') stopDeptTimer();
     state.view = view;
     const loggedIn = !!state.user;
     $('nav').classList.toggle('hidden', !loggedIn);
     $('tabbar').classList.toggle('hidden', !loggedIn);
     document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.tab === view));
-    const views = { login, home, notices, detail, culture, learn, tools, mypage, lottery, staff, leave: leavePage, approve: approvePage, health: healthPage, healthReport: healthReportPage, alert: alertPage, alerts: alertsPage, dept: deptPage, messages: messagesPage, chat: chatPage, newChat: newChatPage, schedule: schedulePage, schedGroups: schedGroupsPage, training: trainingPage, surveys: surveysPage, survey: surveyPage, surveyNew: surveyNewPage, surveyResults: surveyResultsPage };
+    const views = { login, home, notices, detail, culture, learn, tools, mypage, lottery, staff, leave: leavePage, approve: approvePage, health: healthPage, healthReport: healthReportPage, alert: alertPage, alerts: alertsPage, dept: deptPage, messages: messagesPage, chat: chatPage, newChat: newChatPage, schedule: schedulePage, schedGroups: schedGroupsPage, training: trainingPage, surveys: surveysPage, survey: surveyPage, surveyNew: surveyNewPage, surveyResults: surveyResultsPage, noticeNew: noticeNewPage, shared: sharedPage, points: pointsPage, thanks: thanksPage, referral: referralPage };
     stopChatPolling();
     main.innerHTML = '';
     (views[view] || home)(params);
@@ -109,11 +124,11 @@
       <div class="login-bg"><img class="logo" src="/img/logo_full.png" alt="加納岩総合病院"><img class="wanko" src="/img/wanko/face_circle.png" alt="かのいわんこ"></div>
       <section class="login">
         <div class="bubble">おかえりなさい！　職員ポータル（試験運用）</div>
-        <div class="field"><label for="staffId">職員番号</label><input id="staffId" inputmode="numeric" autocomplete="username" placeholder="4531"></div>
+        <div class="field"><label for="staffId">職員番号</label><input id="staffId" inputmode="numeric" autocomplete="username" placeholder="1234"></div>
         <div class="field"><label for="password">パスワード</label><input id="password" type="password" autocomplete="current-password"></div>
         <div class="msg" id="loginMsg"></div>
         <button class="btn" id="loginBtn">ログインする</button>
-        <p class="hint">職員番号は職員証に記載の番号です。初めてログインする方の初期パスワードは職員番号と同じです（例：職員番号 4531 → パスワード 4531）。ログイン後に数字4桁のパスワードを設定してください。先頭の0は不要です。ログインできない場合は事務部へ。</p>
+        <p class="hint">職員番号は職員証に記載の番号です。初めてログインする方の初期パスワードは職員番号と同じです（例：職員番号 1234 → パスワード 1234）。ログイン後に数字4桁のパスワードを設定してください。先頭の0は不要です。ログインできない場合は事務部へ。</p>
       </section>`;
     $('loginBtn').addEventListener('click', doLogin);
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
@@ -167,25 +182,25 @@
       <div id="homeAlerts"></div>
       ${important ? `<button class="alert-bar" data-notice="${important.id}"><span>【重要】${esc(important.title.replace(/^【重要】/, ''))}</span>${chev}</button>` : ''}
       <div class="greet">
-        <div class="avatar" role="img" aria-label="かのいわんこ"></div>
+        <div class="avatar" role="img" aria-label="${u.avatarUrl ? 'プロフィール画像' : 'かのいわんこ'}" ${u.avatarUrl ? `style="background-image:url('${esc(u.avatarUrl)}')"` : ''}></div>
         <div class="text"><div class="who">${esc(u.name)} さん</div><div class="hello">${greeting()}<br>今日もよろしくお願いいたします</div></div>
       </div>
 
       <div class="card has-mascot">
         <img class="mascot" src="/img/wanko/ganbaru.png" alt="">
-        <span class="rank">${esc(st.rank)} ランク</span>
+        <span class="rank">${esc(st.rank)} ランク</span> <button class="link" data-go="points" style="font-size:11px;margin-left:6px">獲得表</button>
         <div class="points"><span class="label">現在の保有ポイント</span><span class="value">${num(st.points)}<small>pt</small></span></div>
         <div class="two">
-          <button class="btn ${st.checkedInToday ? 'done' : ''}" id="checkinBtn" ${st.checkedInToday ? 'disabled' : ''}>${st.checkedInToday ? '出社ポイント <small>取得済み</small>' : `出社ポイント <small>+${r.checkin}pt</small>`}</button>
+          <button class="btn ${st.healthToday ? 'done' : ''}" data-go="healthReport">${st.healthToday ? '体調報告 <small>報告済み</small>' : `体調報告 <small>+${r.checkin}pt</small>`}</button>
           <button class="btn ${st.lotteryToday ? 'done' : ''}" data-go="lottery">${st.lotteryToday ? `デイリーくじ <small>${esc(st.lotteryToday.label)}</small>` : 'デイリーくじ'}</button>
         </div>
       </div>
 
       <div class="card steps">
-        <div class="head"><span class="chip">今日の歩数</span><span class="num">${num(st.stepsToday)}<small>steps</small></span>${st.stepsRewardedToday ? '<span class="done">目標達成</span>' : ''}<button class="edit" id="stepsEditBtn">歩数を入力</button></div>
+        <div class="head"><span class="chip">今日の歩数</span><span class="num">${num(st.stepsToday)}<small>steps</small></span>${st.stepsToday >= r.stepsGoal ? '<span class="done">目標達成</span>' : ''}<button class="edit" id="stepsEditBtn">歩数を入力</button></div>
         <div class="bar"><i style="width:${pct}%"></i></div>
         <div class="scale"><span>0</span><span>${num(r.stepsGoal)}</span></div>
-        <div class="goal"><b>目標歩数</b>${num(r.stepsGoal)}歩 / 日　達成で +${r.stepsBonus}pt</div>
+        <div class="goal"><b>目標歩数</b>${num(r.stepsGoal)}歩 / 日</div>
         <div class="steps-form hidden" id="stepsForm">
           <input id="stepsInput" type="number" inputmode="numeric" min="0" max="100000" placeholder="スマホの歩数計の値を入力" value="${st.stepsToday || ''}">
           <button class="btn" id="stepsSaveBtn">保存</button>
@@ -196,6 +211,7 @@
       ${st.checkedInToday && !st.healthToday ? `<button class="hl-prompt" data-go="healthReport"><img src="/img/wanko/makasete.png" alt=""><div><b>本日の体調報告が未入力です</b>体温と症状の有無を入力してください</div>${chev}</button>` : ''}
       ${st.healthToday ? `<div class="card hl-done"><div class="head"><span class="chip hl">体調報告</span><span class="num">${st.healthToday.temperature.toFixed(1)}℃${st.healthToday.symptoms.length ? `　${esc(st.healthToday.symptoms.join('・'))}` : '　症状なし'}${st.healthToday.other ? `　${esc(st.healthToday.other)}` : ''}</span></div><div class="m">${st.healthToday.confirmed ? `確認済み（${esc(st.healthToday.confirmerName)}）` : '報告済み・所属長の確認待ち'}${st.healthToday.confirmed ? '' : '　<button class="link" data-go="healthReport">修正する</button>'}</div></div>` : ''}
 
+      <div class="two" style="margin:10px 14px 0"><button class="btn outline" data-go="thanks">🎁 サンクスポイント</button><button class="btn outline" data-go="referral">🤝 リファラル採用</button></div>
       <div class="two" style="margin:10px 14px 0"><button class="btn outline" data-go="schedule">📅 スケジュール</button><button class="btn outline" data-go="messages">💬 メッセージ${u.unreadMessages ? ` <small>${u.unreadMessages}</small>` : ''}</button></div>
       <div id="homePush"></div>
 
@@ -221,15 +237,6 @@
       box.innerHTML = r.alerts.map((a) => `<button class="em-bar ${a.kind} ${a.myStatus ? 'done' : ''}" data-go="alert" data-alert="${a.id}"><span class="k">${a.isTest ? '【テスト】' : ''}${esc(a.kindLabel)}</span><span class="t">${esc(a.title)}</span><span class="s">${a.myStatus ? (a.kind === 'emergency' ? '確認済み' : '回答済み') : (a.kind === 'emergency' ? '未確認' : '未回答')}</span>${chev}</button>`).join('');
     }).catch(() => {});
 
-    $('checkinBtn').addEventListener('click', async () => {
-      $('checkinBtn').disabled = true;
-      try {
-        const r2 = await api('/api/points/checkin', { method: 'POST' });
-        state.status = r2.status;
-        toast(`出社ポイント +${r2.granted}pt を獲得しました`);
-        render(state.status.healthToday ? 'home' : 'healthReport'); // 出社後はそのまま体調報告へ
-      } catch (e) { toast(e.message); $('checkinBtn').disabled = false; }
-    });
     $('stepsEditBtn').addEventListener('click', () => { $('stepsForm').classList.toggle('hidden'); $('stepsInput').focus(); });
     $('stepsSaveBtn').addEventListener('click', saveSteps);
     $('stepsInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveSteps(); });
@@ -239,7 +246,7 @@
       const r2 = await api('/api/steps', { method: 'POST', body: JSON.stringify({ steps: $('stepsInput').value }) });
       state.status = r2.status;
       render('home');
-      toast(r2.granted ? `目標達成！ +${r2.granted}pt を獲得しました` : '歩数を保存しました');
+      toast('歩数を保存しました');
     } catch (e) { toast(e.message); }
   }
 
@@ -308,7 +315,7 @@
     const f = state.filter;
     const list = state.notices.filter((n) => f === 'all' || n.category === f);
     main.innerHTML = `
-      <div class="page"><h1 class="page-title">お知らせ</h1><p class="page-lead">配信したお知らせを一覧で確認できます。</p></div>
+      <div class="page"><h1 class="page-title">お知らせ</h1><p class="page-lead">配信したお知らせを一覧で確認できます。</p><div class="row" style="margin:0 0 10px"><button class="btn" data-go="noticeNew">＋ お知らせを投稿する</button></div></div>
       <div class="filters">
         ${['all', 'important', 'general', 'department'].map((k) => `<button class="${f === k ? 'on' : ''}" data-filter="${k}">${k === 'all' ? 'すべて' : CAT[k]}</button>`).join('')}
       </div>
@@ -322,6 +329,16 @@
     if (state.notices.length) localStorage.setItem(LAST_SEEN_KEY, String(Math.max(lastSeen(), ...state.notices.map((n) => n.id))));
   }
 
+  // 記事本文：{{img:URL|説明}} を画像に、それ以外はテキストのまま表示
+  function articleBody(text) {
+    return String(text).split(/(\{\{img:[^}]+\}\})/).map((part) => {
+      const m = part.match(/^\{\{img:([^|}]+)\|?([^}]*)\}\}$/);
+      if (!m) return esc(part);
+      const src = m[1].trim(), cap = m[2].trim();
+      return `<figure class="embed"><img src="${esc(src)}" alt="${esc(cap)}" loading="lazy" data-full="${esc(src.replace(/\.jpg$/i, '.pdf'))}"><figcaption>${esc(cap)}</figcaption></figure>`;
+    }).join('');
+  }
+
   function detail({ notice, content }) {
     if (notice) {
       main.innerHTML = `
@@ -330,8 +347,9 @@
           <div class="meta"><span class="tag ${notice.category}">${esc(deptLabel(notice))}</span><span>${fmtDate(notice.createdAt, true)}</span></div>
           <h2>${esc(notice.title)}</h2>
           <div class="body">${esc(notice.body || '（本文はありません）')}</div>
-          ${(notice.attachments || []).length ? `<div class="sec-label" style="padding:14px 0 4px">添付ファイル</div><ul class="clist">${notice.attachments.map((a) => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener"><span class="dp-ico">${/\.pdf$/i.test(a.name) ? 'PDF' : /\.(png|jpe?g)$/i.test(a.name) ? '画像' : /\.xlsx?$/i.test(a.name) ? 'Excel' : /\.docx?$/i.test(a.name) ? 'Word' : 'ファイル'}</span><span class="t" style="flex:1">${esc(a.name)}</span>${chev}</a></li>`).join('')}</ul>` : ''}
+          ${(notice.attachments || []).length ? `<div class="sec-label" style="padding:14px 0 4px">添付ファイル</div><ul class="clist">${notice.attachments.map((a) => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener" style="padding-right:96px"><span class="dp-ico">${/\.pdf$/i.test(a.name) ? 'PDF' : /\.(png|jpe?g)$/i.test(a.name) ? '画像' : /\.xlsx?$/i.test(a.name) ? 'Excel' : /\.docx?$/i.test(a.name) ? 'Word' : 'ファイル'}</span><span class="t" style="flex:1">${esc(a.name)}</span>${chev}</a><a class="att-dl" href="${esc(a.url)}${a.url.includes('?') ? '&' : '?'}dl=1" download="${esc(a.name)}">保存</a></li>`).join('')}</ul><p class="lv-note" style="margin:6px 0 0">スマホで印刷するときは「保存」で端末に保存し、ファイルアプリ（iPhone：共有 → プリント／Android：ファイル → 印刷）から印刷してください。</p>` : ''}
           ${notice.author ? `<div class="author">投稿：${esc(notice.author)}</div>` : ''}
+          ${notice.createdBy === state.user.id ? `<div class="row" style="margin-top:10px"><button class="btn quiet" data-ndel="${notice.id}">この投稿を削除する</button></div>` : ''}
         </article>`;
       if (notice.id > lastSeen()) localStorage.setItem(LAST_SEEN_KEY, String(notice.id));
     } else if (content) {
@@ -340,21 +358,22 @@
         <article class="detail">
           <div class="meta"><span>${esc(content.section)}</span><span>${fmtDate(content.date)}</span>${content.author ? `<span>${esc(content.author)}</span>` : ''}</div>
           <h2>${esc(content.title)}</h2>
-          <div class="body">${esc(content.body || '')}</div>
-          ${content.url ? `<p><a class="btn outline" href="${esc(content.url)}" target="_blank" rel="noopener">リンクを開く</a></p>` : ''}
+          ${content.note ? `<p class="subtitle">${esc(content.note)}</p>` : ''}
+          <div class="body">${articleBody(content.body || '')}</div>
+          ${content.url ? `<p><a class="btn outline" href="${esc(content.url)}" target="_blank" rel="noopener">${/\.pdf$/i.test(content.url) ? 'PDFで読む' : 'リンクを開く'}</a></p>` : ''}
         </article>`;
     }
   }
 
   // ---- カルチャー / 知る・学ぶ / お役立ち -------------------------------------
-  const LEAD = { culture: '病院の想いや、一緒に働く仲間のことを知るページです。', learn: '院内マニュアルや研修資料をまとめています。', tools: '日常業務で使うサイトや連絡先をまとめています。' };
+  const LEAD = { culture: '病院の想いや、一緒に働く仲間のことを知るページです。', learn: '院内マニュアルや研修資料をまとめています。', tools: '日常業務で使うサイトや、院内の資料をまとめています。' };
   function contentPage(tab) {
     const items = allContents().filter((c) => c.tab === tab);
     const sections = [...new Set(items.map((c) => c.section))];
     main.innerHTML = `
       <div class="page"><h1 class="page-title">${TAB_LABEL[tab]}</h1><p class="page-lead">${LEAD[tab]}</p></div>
       ${tab === 'learn' ? `<div id="learnLinks"></div><button class="pick dp-home" data-go="training" style="margin-bottom:14px"><div class="ph"><img src="/img/wanko/ganbaru.png" alt=""></div><div><div class="lab">研修</div><div class="t">研修資料・受講記録</div><div class="d">医療安全・感染症対策 ほか</div></div>${chev}</button>` : ''}
-      ${tab === 'tools' ? `
+      ${tab === 'tools' && LEAVE_READY ? `
       <div class="card lv-home" style="margin:0 14px 10px">
         <div class="head"><span class="chip lv">休暇届</span><span class="num" id="lvHomeBal">…</span></div>
         <div class="two"><button class="btn outline" data-go="leave">休暇を申請・確認</button>${state.user.isApprover ? `<button class="btn ${state.user.pendingApprovals ? '' : 'done'}" data-go="approve">承認待ち <small>${state.user.pendingApprovals ? `${state.user.pendingApprovals}件` : 'なし'}</small></button>` : ''}</div>
@@ -363,13 +382,16 @@
       ${sections.map((sec) => `
         <section class="sec"><h3>${esc(sec)}</h3>
           <ul class="clist">
-            ${items.filter((c) => c.section === sec).map((c) => c.kind === 'link'
-              ? `<li><a href="${c.url ? esc(c.url) : '#'}" ${c.url ? (c.url.startsWith('tel:') || isInternal(c.url) ? '' : 'target="_blank" rel="noopener"') : 'data-todo="このリンク先"'}><span><span class="t">${esc(c.title)}</span><br><span class="n">${esc(c.note)}</span></span>${chev}</a></li>`
+            ${items.filter((c) => c.section === sec).map((c) => c.kind === 'slot'
+              ? `<li><button data-shared="${c.key}"><span><span class="t">${esc(c.title)}</span><br><span class="n" id="sh-${c.key}">準備中</span></span>${chev}</button></li>`
+              : c.kind === 'link'
+              ? `<li><a href="${c.url && !c.soon ? esc(c.url) : '#'}" ${c.soon ? 'data-soon="1" style="opacity:.6"' : c.url ? (c.url.startsWith('tel:') || isInternal(c.url) ? '' : 'target="_blank" rel="noopener"') : 'data-todo="このリンク先"'}><span><span class="t">${esc(c.title)}</span><br><span class="n">${esc(c.note)}</span></span>${chev}</a></li>`
               : `<li><button data-content="${c.id}"><span><span class="t">${esc(c.title)}</span><br><span class="n">${fmtDate(c.date)}${c.author ? `　${esc(c.author)}` : ''}</span></span>${chev}</button></li>`).join('')}
           </ul>
         </section>`).join('') || '<div class="empty"><img src="/img/wanko/tanoshii.png" alt="">掲載内容はまだありません</div>'}`;
     if (tab === 'learn') api('/api/training/links').then((r) => { const box = $('learnLinks'); if (!box || !r.links.length) return; box.innerHTML = `<section class="sec"><h3>研修・提出のリンク</h3><ul class="clist">${r.links.map((l) => `<li><a href="${esc(l.url)}" ${isInternal(l.url) ? '' : 'target="_blank" rel="noopener"'}><span><span class="t">${esc(l.title)}</span><br><span class="n">${l.deadline ? `<span class="${l.expired ? '' : 'rej'}">期日：${esc(l.deadline)}${l.expired ? '（終了）' : ''}</span>${l.note ? '　' : ''}` : ''}${esc(l.note)}</span></span>${chev}</a></li>`).join('')}</ul></section>`; }).catch(() => {});
-    if (tab === 'tools') api('/api/leave/me').then((lv) => { const el = $('lvHomeBal'); if (el) el.innerHTML = lv.balance.granted ? `残り <b>${esc(fmtBal(lv.balance))}</b>` : '<small>年休は未付与です</small>'; }).catch(() => {});
+    if (tab === 'tools') api('/api/shared').then((r) => { r.slots.forEach((sl) => { const el = $(`sh-${sl.key}`); if (!el) return; el.textContent = sl.count ? `${sl.count}件　最終更新 ${fmtDate(sl.latest)}` : (r.canEdit ? '準備中（タップして登録）' : '準備中'); if (!sl.count && !r.canEdit) el.closest('button').style.opacity = '.6'; }); }).catch(() => {});
+    if (tab === 'tools' && LEAVE_READY) api('/api/leave/me').then((lv) => { const el = $('lvHomeBal'); if (el) el.innerHTML = lv.balance.granted ? `残り <b>${esc(fmtBal(lv.balance))}</b>` : '<small>年休は未付与です</small>'; }).catch(() => {});
   }
   const culture = () => contentPage('culture');
   const learn = () => contentPage('learn');
@@ -492,7 +514,7 @@
         else if (q.type === 'single') { const c = main.querySelector(`input[name="q${q.id}"]:checked`); answers[q.id] = c ? c.value : ''; }
         else answers[q.id] = [...main.querySelectorAll(`input[name="q${q.id}"]:checked`)].map((c) => c.value);
       });
-      try { await api(`/api/surveys/${s.id}/answer`, { method: 'POST', body: JSON.stringify({ answers }) }); toast('回答を送信しました。ご協力ありがとうございます'); render('surveys'); }
+      try { const r = await api(`/api/surveys/${s.id}/answer`, { method: 'POST', body: JSON.stringify({ answers }) }); toast(r.granted ? `回答を送信しました（+${r.granted}pt）` : '回答を送信しました。ご協力ありがとうございます'); render('surveys'); }
       catch (e) { msg.textContent = e.message; }
     });
   }
@@ -668,6 +690,65 @@
         await moveOrCopy(id, cell.dataset.scday, (e.ctrlKey || e.altKey) ? 'copy' : 'move');
       });
     });
+    // 長押しドラッグ（スマホ・タブレット）。長押しで持ち上げ → 指をずらして日付の上で離す → 移動かコピーを選ぶ
+    if (window.matchMedia('(pointer: coarse)').matches) setupTouchDrag();
+  }
+  function setupTouchDrag() {
+    let timer = null, drag = null, ghost = null, overCell = null;
+    const clear = () => { clearTimeout(timer); timer = null; if (ghost) ghost.remove(); ghost = null; if (overCell) overCell.classList.remove('over'); overCell = null; if (drag) drag.el.classList.remove('dragging'); drag = null; document.body.classList.remove('sc-dragging'); };
+    document.querySelectorAll('.sc-ev').forEach((el) => {
+      el.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        timer = setTimeout(() => {
+          drag = { el, id: Number(el.dataset.ev), title: el.title };
+          el.classList.add('dragging'); document.body.classList.add('sc-dragging');
+          ghost = document.createElement('div'); ghost.className = 'sc-ghost'; ghost.style.setProperty('--c', el.style.getPropertyValue('--c')); ghost.textContent = el.title; document.body.appendChild(ghost);
+          ghost.style.left = `${t.clientX}px`; ghost.style.top = `${t.clientY}px`;
+          if (navigator.vibrate) navigator.vibrate(30);
+        }, 350);
+      }, { passive: true });
+      el.addEventListener('touchmove', (e) => {
+        if (!drag) { clearTimeout(timer); return; }   // 長押し前に動いたら通常のスクロール
+        e.preventDefault();
+        const t = e.touches[0];
+        ghost.style.left = `${t.clientX}px`; ghost.style.top = `${t.clientY}px`;
+        const cell = document.elementFromPoint(t.clientX, t.clientY)?.closest('.sc-cell');
+        if (cell !== overCell) { if (overCell) overCell.classList.remove('over'); overCell = cell; if (cell) cell.classList.add('over'); }
+      }, { passive: false });
+      const finish = async () => {
+        clearTimeout(timer);
+        if (!drag) return;
+        const d = drag, cell = overCell; clear();
+        if (!cell || !cell.dataset.scday) return;
+        const choose = await choiceSheet(`${esc(d.title)}<br><small>${fmtMD(cell.dataset.scday)} に</small>`, [{ v: 'move', l: '移動する' }, { v: 'copy', l: 'コピーする' }]);
+        if (choose) await moveOrCopy(d.id, cell.dataset.scday, choose);
+      };
+      el.addEventListener('touchend', finish); el.addEventListener('touchcancel', clear);
+    });
+  }
+  // 画像を正方形に切り抜いて縮小（プロフィール画像用）
+  function shrinkImage(file, size) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(); const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const c = document.createElement('canvas'); c.width = size; c.height = size;
+        c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => (b ? resolve(b) : reject(new Error('画像を読み込めませんでした'))), 'image/jpeg', 0.86);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像を読み込めませんでした（HEIC の場合は JPEG で保存し直してください）')); };
+      img.src = url;
+    });
+  }
+  // 画面下から出る選択シート。選んだ値を返す（キャンセルは null）
+  function choiceSheet(html, options) {
+    return new Promise((resolve) => {
+      const wrap = document.createElement('div'); wrap.className = 'sheet-wrap';
+      wrap.innerHTML = `<div class="sheet"><div class="sheet-title">${html}</div>${options.map((o) => `<button class="btn" data-v="${o.v}">${o.l}</button>`).join('')}<button class="btn quiet" data-v="">やめる</button></div>`;
+      wrap.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b || e.target === wrap) { wrap.remove(); resolve(b && b.dataset.v ? b.dataset.v : null); } });
+      document.body.appendChild(wrap);
+    });
   }
   async function moveOrCopy(id, date, mode) {
     try {
@@ -732,7 +813,7 @@
     state.user.unreadMessages = d.conversations.reduce((s, c) => s + c.unread, 0); updateBadge();
     const icon = { direct: '👤', department: '🏥', section: '📋', group: '👥' };
     main.innerHTML = `
-      <div class="page"><h1 class="page-title">メッセージ</h1><p class="page-lead">部署・課の連絡、個人へのメッセージ、任意のグループでやり取りできます。</p></div>
+      <div class="page"><h1 class="page-title">メッセージ</h1><p class="page-lead">部署・課の連絡、個人へのメッセージ、任意のグループでやり取りできます。</p><p class="page-lead msg-caution">※送信履歴は記録されています。患者情報の入力厳禁。</p></div>
       <div class="two" style="margin:0 14px 12px"><button class="btn" data-go="newChat" data-mode="direct">個人にメッセージ</button><button class="btn outline" data-go="newChat" data-mode="group">グループを作る</button></div>
       <ul class="nlist">${d.conversations.map((c) => `
         <li><button class="row ms-row ${c.unread ? 'unread' : ''}" data-chat="${c.id}">
@@ -757,8 +838,8 @@
         <div class="field"><input id="dirSearch" placeholder="名前・部門で絞り込み"></div>
       </div>
       <div id="dirList">${depts.map((dep) => `<div class="sec-label">${esc(dep)}</div><ul class="nlist dir-list">${d.users.filter((u) => u.department === dep).map((u) => m === 'group'
-        ? `<li data-search="${esc(u.name + ' ' + u.kana + ' ' + u.department + ' ' + u.section)}"><label class="row dir-row"><input type="checkbox" class="gMember" value="${u.id}"><span><span class="t">${esc(u.name)}</span><br><span class="m">${esc(u.section)}　${esc(u.job)}</span></span></label></li>`
-        : `<li data-search="${esc(u.name + ' ' + u.kana + ' ' + u.department + ' ' + u.section)}"><button class="row dir-row" data-direct="${u.id}"><span><span class="t">${esc(u.name)}</span><br><span class="m">${esc(u.section)}　${esc(u.job)}</span></span>${chev}</button></li>`).join('')}</ul>`).join('')}</div>
+        ? `<li data-search="${esc(u.name + ' ' + u.kana + ' ' + u.department + ' ' + u.section)}"><label class="row dir-row"><input type="checkbox" class="gMember" value="${u.id}"><span><span class="t">${esc(u.name)}</span><br><span class="m">${esc(u.section)}</span></span></label></li>`
+        : `<li data-search="${esc(u.name + ' ' + u.kana + ' ' + u.department + ' ' + u.section)}"><button class="row dir-row" data-direct="${u.id}"><span><span class="t">${esc(u.name)}</span><br><span class="m">${esc(u.section)}</span></span>${chev}</button></li>`).join('')}</ul>`).join('')}</div>
       ${m === 'group' ? `<div class="page" style="margin-top:12px"><button class="btn" id="gCreate" style="width:100%">グループを作成する（<span id="gCount">0</span>名）</button><div class="msg" id="gMsg"></div></div>` : ''}`;
     $('dirSearch').addEventListener('input', () => {
       const q = $('dirSearch').value.trim();
@@ -841,7 +922,7 @@
     }, 8000);
   }
 
-  // ---- 部署ページ（朝礼・シフト表・担当表・資料）-------------------------------------------------
+  // ---- 部署ページ（掲示板・シフト表・情報共有）-------------------------------------------------
   const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
   const fileIcon = (m) => (m === 'application/pdf' ? 'PDF' : /spreadsheet|excel/.test(m) ? 'Excel' : /word/.test(m) ? 'Word' : /image/.test(m) ? '画像' : 'ファイル');
   // 部署一覧（ボタンのグリッド）。自分の所属は先頭に表示
@@ -851,10 +932,37 @@
     const mine = state.user.department;
     const list = [...pages].sort((a, b) => (a.name === mine ? -1 : b.name === mine ? 1 : 0));
     main.innerHTML = `
-      <div class="page"><h1 class="page-title">部署ごと</h1><p class="page-lead">部署を選ぶと、朝礼・シフト表・掃除/日誌担当表のページが開きます。</p></div>
+      <div class="page"><h1 class="page-title">部署ごと</h1><p class="page-lead">部署を選ぶと、掲示板・シフト表・情報共有のページが開きます。</p></div>
       <div class="dp-grid">${list.map((p) => `<button class="dp-tile ${p.name === mine ? 'mine' : ''}" data-dpsel="${esc(p.name)}"><span class="t">${esc(p.name)}</span>${p.name === mine ? '<span class="m">自分の部署</span>' : p.sections.length ? `<span class="m">${p.sections.length}病棟・課</span>` : ''}</button>`).join('')}</div>`;
   }
+  // 左スワイプで削除ボタンを出す（タッチ端末）。右スワイプ・他の行を触ると閉じる
+  function setupSwipe() {
+    let sx = 0, sy = 0, cur = null, moved = false;
+    document.querySelectorAll('.swipe').forEach((li) => {
+      const body = li.querySelector('.sw-body');
+      li.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; cur = li; moved = false; body.style.transition = 'none'; }, { passive: true });
+      li.addEventListener('touchmove', (e) => {
+        if (cur !== li) return;
+        const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+        if (Math.abs(dy) > Math.abs(dx)) return;         // 縦スクロールはそのまま
+        moved = true; li.classList.add('dragging');
+        const base = li.classList.contains('open') ? -84 : 0;
+        body.style.transform = `translateX(${Math.max(-84, Math.min(0, base + dx))}px)`;
+      }, { passive: true });
+      li.addEventListener('touchend', (e) => {
+        body.style.transition = ''; li.classList.remove('dragging');
+        if (!moved) return;
+        const dx = e.changedTouches[0].clientX - sx;
+        const open = li.classList.contains('open') ? dx < 40 : dx < -40;
+        document.querySelectorAll('.swipe.open').forEach((o) => { if (o !== li) { o.classList.remove('open'); o.querySelector('.sw-body').style.transform = ''; } });
+        li.classList.toggle('open', open); body.style.transform = open ? 'translateX(-84px)' : '';
+      });
+    });
+  }
+  let deptTimer = null, deptSnapshot = '';
+  function stopDeptTimer() { if (deptTimer) { clearInterval(deptTimer); deptTimer = null; } }
   async function deptPage() {
+    stopDeptTimer();
     if (!state.deptName) { await deptPickPage(); return; }
     const dname = state.deptName;
     main.innerHTML = `<button class="back" data-dpback="1">‹ 部署一覧へ</button><div class="empty">読み込み中…</div>`;
@@ -862,10 +970,12 @@
     try { d = await api(`/api/dept?department=${encodeURIComponent(dname)}`); state.deptName = d.department; }
     catch (e) { state.deptName = null; await deptPickPage(); toast(e.message); return; }
     const subs = d.pages.filter((p) => p.department === d.baseDepartment && p.section);
+    const noteLabel = '掲示板';
+    const cats = Object.fromEntries(Object.entries(d.categories).filter(([k]) => k !== 'duty'));
     const ym = d.today.slice(0, 7);
     const nextYm = (() => { const [y, m] = ym.split('-').map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; })();
     const byCat = (c) => d.files.filter((f) => f.category === c);
-    const fileRow = (f) => `<li><a href="${f.url}" target="_blank" rel="noopener" class="dp-file"><span class="dp-ico">${fileIcon(f.mime)}</span><span><span class="t">${esc(f.title)}</span><br><span class="m">${f.month ? `${f.month.replace('-', '年')}月分　` : ''}${esc(f.origName)}　${fmtSize(f.size)}　${fmtDate(f.createdAt)} ${esc(f.uploaderName)}</span></span></a>${d.canEdit ? `<span class="ops"><a href="${f.url}?dl=1" download>保存</a><button class="del" data-dpdel="${f.id}" data-name="${esc(f.title)}">削除</button></span>` : ''}</li>`;
+    const fileRow = (f) => `<li class="${d.canEdit ? 'swipe' : ''}" ${d.canEdit ? `data-swid="${f.id}"` : ''}>${d.canEdit ? `<button class="sw-del" data-dpdel="${f.id}" data-name="${esc(f.title)}">削除</button>` : ''}<div class="sw-body"><a href="${f.url}" target="_blank" rel="noopener" class="dp-file"><span class="dp-ico">${fileIcon(f.mime)}</span><span><span class="t">${esc(f.title)}</span><br><span class="m">${f.month ? `${f.month.replace('-', '年')}月分　` : ''}${esc(f.origName)}　${fmtSize(f.size)}　${fmtDate(f.createdAt)} ${esc(f.uploaderName)}</span></span></a>${d.canEdit ? `<span class="ops"><a href="${f.url}?dl=1" download>保存</a><button class="del" data-dpdel="${f.id}" data-name="${esc(f.title)}">削除</button></span>` : ''}</div></li>`;
     const monthFiles = (c) => {
       const list = byCat(c);
       const months = [...new Set(list.map((f) => f.month))];
@@ -879,37 +989,45 @@
       </div>
 
       <div class="card dp-note">
-        <div class="head"><span class="chip lv">本日の朝礼</span><span class="m">${fmtDate(d.today)}${d.note ? `　最終更新 ${fmtDate(d.note.updatedAt, true)} ${esc(d.note.editorName)}` : ''}</span></div>
+        <div class="head"><span class="chip lv">本日の${noteLabel}</span><span class="m" style="color:#8a2a2a;font-weight:700">※患者情報入力厳禁</span><span class="m">${fmtDate(d.today)}${d.note ? `　最終更新 ${fmtDate(d.note.updatedAt, true)} ${esc(d.note.editorName)}` : ''}</span></div>
         <div id="dpNoteView" class="${d.note && d.note.body ? '' : 'empty'}" style="white-space:pre-wrap;font-size:14px;margin-top:8px">${d.note && d.note.body ? esc(d.note.body) : 'まだ入力されていません'}</div>
-        ${d.canEditNote ? `<div id="dpNoteEdit" class="hidden"><textarea id="dpNoteBody" placeholder="例：\n・本日の来客：14時 ○○社\n・連絡事項：…\n・担当：受付 A、電話 B">${esc(d.note ? d.note.body : '')}</textarea>
+        ${d.canEditNote ? `<div id="dpNoteEdit" class="hidden"><textarea id="dpNoteBody" placeholder="例：\n・連絡事項：…\n・本日の来客・会議：14時 ○○\n・物品の補充依頼：…\n※患者さんの氏名・病状などは書かないでください">${esc(d.note ? d.note.body : '')}</textarea>
           <div class="row"><button class="btn" id="dpNoteSave">保存する</button><button class="btn quiet" id="dpNoteCancel">キャンセル</button></div><div class="msg" id="dpNoteMsg"></div></div>
         <div class="row" id="dpNoteBtns"><button class="btn outline" id="dpNoteEditBtn">${d.note && d.note.body ? '編集する' : '入力する'}</button></div>` : ''}
       </div>
-      ${d.recentNotes.length ? `<details class="dp-hist"><summary>過去の朝礼（${d.recentNotes.length}件）</summary><ul class="alist">${d.recentNotes.map((n) => `<li><span><span class="t">${fmtDate(n.day)}</span><br><span class="m" style="white-space:pre-wrap">${esc(n.body)}</span></span></li>`).join('')}</ul></details>` : ''}
+      ${d.recentNotes.length ? `<details class="dp-hist"><summary>過去の${noteLabel}（${d.recentNotes.length}件）</summary><ul class="alist">${d.recentNotes.map((n) => `<li><span><span class="t">${fmtDate(n.day)}</span><br><span class="m" style="white-space:pre-wrap">${esc(n.body)}</span></span></li>`).join('')}</ul></details>` : ''}
+
+
+      <div class="sec-head"><h2>シフト表</h2></div>${monthFiles('shift')}
+      <div class="sec-head"><h2>情報共有</h2></div><ul class="alist dp-list">${byCat('other').map(fileRow).join('') || '<li class="empty">なし</li>'}</ul>
+      ${byCat('duty').length ? `<div class="sec-head"><h2>掃除・日誌担当表（旧）</h2></div>${monthFiles('duty')}` : ''}
 
       ${d.canEdit ? `
       <div class="form"><h3>ファイルを登録する</h3>
         <div class="grid2">
-          <div><label>種類</label><select id="dpCat">${Object.entries(d.categories).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
+          <div><label>種類</label><select id="dpCat">${Object.entries(cats).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
           <div id="dpMonthWrap"><label>対象月</label><input id="dpMonth" type="month" value="${nextYm}"></div>
         </div>
         <label>表示名（空欄ならファイル名）</label><input id="dpTitle" maxlength="100" placeholder="例：11月シフト表">
         <label>ファイル（PDF・Excel・Word・画像、10MBまで）</label><input id="dpFile" type="file" accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg">
         <div class="row"><button class="btn" id="dpUpload">アップロード</button></div><div class="msg" id="dpMsg"></div>
       </div>` : ''}
-
-      <div class="sec-head"><h2>シフト表</h2></div>${monthFiles('shift')}
-      <div class="sec-head"><h2>掃除・日誌担当表</h2></div>${monthFiles('duty')}
-      <div class="sec-head"><h2>その他の資料</h2></div><ul class="alist dp-list">${byCat('other').map(fileRow).join('') || '<li class="empty">なし</li>'}</ul>
-
-      <details class="dp-hist"><summary>${esc(d.label)}のメンバー（${d.members.length}名）</summary><ul class="alist">${d.members.map((m) => `<li><span><span class="t">${esc(m.name)}</span><span class="m">　${esc(m.section)}　${esc(m.job)}${m.role ? `　${{ shunin: '主任', kacho: '課長', bucho: '部長' }[m.role] || ''}` : ''}</span></span></li>`).join('')}</ul></details>`;
+      <details class="dp-hist"><summary>${esc(d.label)}のメンバー（${d.members.length}名）</summary><ul class="alist">${d.members.map((m) => `<li><span><span class="t">${esc(m.name)}</span><span class="m">　${esc(m.section)}　${esc(m.job)}${m.role ? `　${{ shunin: '主任', kacho: '課長', bucho: '部長' }[m.role] || ''}` : ''}</span></span></li>`).join('')}</ul></details>
+      ${(() => { const st = d.storage; const pct = Math.min(100, Math.round(st.used / st.quota * 100)); const lvl = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : ''; return `
+      <div class="card st-meter ${lvl}">
+        <div class="head"><span class="chip lv">ストレージ</span><span class="m">${esc(st.department)}のファイル ${st.files}件</span></div>
+        <div class="st-bar"><div class="st-fill" style="width:${pct}%"></div></div>
+        <div class="st-txt"><b>${fmtSize(st.used)}</b> / ${fmtSize(st.quota)}（${pct}%）${pct >= 90 ? '　上限が近づいています。古いファイルを削除してください' : pct >= 70 ? '　残りが少なくなっています' : ''}</div>
+        ${d.canEdit ? `<div class="m" style="font-size:11px;margin-top:4px">ファイルは左にスワイプ（PCは「削除」ボタン）で削除できます。シフト表・担当表は、月が過ぎたものから整理してください。</div>` : ''}
+        ${d.diskAll ? `<div class="m" style="font-size:11px;margin-top:4px">【管理者】全部署の合計 ${fmtSize(d.diskAll.b)}（${d.diskAll.n}件）／ ディスク全体 ${(d.diskAll.capacity / 1073741824).toFixed(0)}GB（お知らせの添付・プロフィール画像を除く）</div>` : ''}
+      </div>`; })()}`;
 
     if (d.canEditNote) {
       $('dpNoteEditBtn').addEventListener('click', () => { $('dpNoteView').classList.add('hidden'); $('dpNoteBtns').classList.add('hidden'); $('dpNoteEdit').classList.remove('hidden'); $('dpNoteBody').focus(); });
       $('dpNoteCancel').addEventListener('click', () => render('dept'));
       $('dpNoteSave').addEventListener('click', async () => {
         const msg = $('dpNoteMsg'); msg.className = 'msg';
-        try { await api('/api/dept/note', { method: 'PUT', body: JSON.stringify({ department: d.department, day: d.today, body: $('dpNoteBody').value }) }); toast('朝礼の内容を保存しました'); render('dept'); }
+        try { await api('/api/dept/note', { method: 'PUT', body: JSON.stringify({ department: d.department, day: d.today, body: $('dpNoteBody').value }) }); toast('掲示板を保存しました'); render('dept'); }
         catch (e) { msg.textContent = e.message; }
       });
     }
@@ -931,6 +1049,18 @@
         } catch (e) { msg.textContent = e.message; $('dpUpload').disabled = false; $('dpUpload').textContent = 'アップロード'; }
       });
     }
+    setupSwipe();
+    deptSnapshot = JSON.stringify({ n: d.note, f: d.files, r: d.recentNotes });
+    deptTimer = setInterval(async () => {
+      if (state.view !== 'dept' || document.visibilityState !== 'visible') return;
+      if (document.activeElement && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)) return; // 入力中は更新しない
+      if ($('dpNoteEdit') && !$('dpNoteEdit').classList.contains('hidden')) return;              // 掲示板を編集中
+      try {
+        const nd = await api(`/api/dept?department=${encodeURIComponent(d.department)}`);
+        const snap = JSON.stringify({ n: nd.note, f: nd.files, r: nd.recentNotes });
+        if (snap !== deptSnapshot) { deptSnapshot = snap; render('dept'); }
+      } catch (_) {}
+    }, 10000);
   }
 
   // ---- 緊急連絡・安否確認（職員の回答画面）------------------------------------------------
@@ -1071,8 +1201,9 @@
       d.symptoms.forEach((s) => { payload[s.key] = $(`h_${s.key}`).checked; });
       try {
         const res = await api('/api/health/report', { method: 'POST', body: JSON.stringify(payload) });
-        state.status.healthToday = res.report;
-        toast(res.report.alert ? '報告しました。お大事にしてください' : '報告しました。今日もよろしくお願いします');
+        if (res.status) state.status = res.status; else state.status.healthToday = res.report;
+        const pt = res.granted ? `（+${res.granted}pt）` : '';
+        toast(res.report.alert ? `報告しました${pt}。お大事にしてください` : `報告しました${pt}。今日もよろしくお願いします`);
         render('home');
       } catch (e) { msg.textContent = e.message; $('hSubmit').disabled = false; }
     });
@@ -1104,8 +1235,182 @@
   }
   function shiftDay(s, n) { const d = new Date(`${s}T00:00:00`); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
+  // ---- 院内資料（食堂メニュー・マニュアル・当直表）-------------------------------------
+  async function sharedPage(opt) {
+    const key = (opt && opt.slot) || state.sharedSlot; state.sharedSlot = key;
+    main.innerHTML = `<button class="back" data-tab="tools">‹ お役立ちへ戻る</button><div class="empty">読み込み中…</div>`;
+    let d;
+    try { d = await api(`/api/shared/${encodeURIComponent(key)}`); } catch (e) { main.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    const isImg = (m) => /^image\//.test(m);
+    main.innerHTML = `
+      <button class="back" data-tab="tools">‹ お役立ちへ戻る</button>
+      <div class="page"><h1 class="page-title">${esc(d.slot.title)}</h1><p class="page-lead">${d.slot.note ? esc(d.slot.note) : '最新のものが上に表示されます。'}</p></div>
+      ${d.files.length ? d.files.map((f, i) => `
+        <div class="card sh-item ${d.canEdit ? 'swipe' : ''}">${d.canEdit ? `<button class="sw-del" data-shdel="${f.id}" data-name="${esc(f.title)}">削除</button>` : ''}<div class="sw-body" style="display:block">
+          <div class="head"><span class="chip ${i === 0 ? 'lv' : ''}">${i === 0 ? '最新' : fileIcon(f.mime)}</span><span class="m">${fmtDate(f.createdAt, true)}　${esc(f.uploaderName)}</span></div>
+          <div style="font-weight:700;margin:6px 0">${esc(f.title)}</div>
+          ${isImg(f.mime) ? `<a href="${f.url}" target="_blank" rel="noopener"><img class="sh-img" src="${f.url}" alt="${esc(f.title)}" loading="lazy"></a>` : `<a class="btn outline" href="${f.url}" target="_blank" rel="noopener" style="display:inline-block">${fileIcon(f.mime)} を開く（${fmtSize(f.size)}）</a>`}
+          <div class="row" style="margin-top:8px"><a class="att-dl" style="position:static;transform:none" href="${f.url}?dl=1" download>保存</a>${d.canEdit ? `<button class="del" data-shdel="${f.id}" data-name="${esc(f.title)}" style="font:inherit;font-size:12px;border:1px solid #c0392b;color:#c0392b;background:#fff;border-radius:999px;padding:4px 10px">削除</button>` : ''}</div>
+        </div></div>`).join('') : `<div class="empty"><img src="/img/wanko/makasete.png" alt="">準備中です。${d.canEdit ? '下のフォームから写真や PDF を登録してください。' : '登録され次第、ここに表示されます。'}</div>`}
+      ${d.canEdit ? `
+      <div class="form"><h3>写真・PDFを登録する</h3>
+        <label>表示名（空欄ならファイル名）</label><input id="shTitle" maxlength="100" placeholder="例：11月第4週メニュー">
+        <label>ファイル（写真・PDF・Excel・Word、10MBまで）</label><input id="shFile" type="file" accept="image/*,.pdf,.xlsx,.xls,.docx,.doc">
+        <div class="row"><button class="btn" id="shUpload">登録する</button></div><div class="msg" id="shMsg"></div>
+        ${d.storage ? `<p class="lv-note" style="margin-top:8px">院内資料の使用量 ${fmtSize(d.storage.b)} / ${fmtSize(d.storage.quota)}（${d.storage.n}件）</p>` : ''}
+      </div>` : ''}`;
+    if (d.canEdit) {
+      $('shUpload').addEventListener('click', async () => {
+        const msg = $('shMsg'); msg.className = 'msg';
+        const f = $('shFile').files[0]; if (!f) { msg.textContent = 'ファイルを選択してください'; return; }
+        $('shUpload').disabled = true;
+        try {
+          const fd = new FormData(); fd.append('title', $('shTitle').value); fd.append('file', /^image\//.test(f.type) && f.size > 600 * 1024 ? await shrinkPhoto(f, 1600) : f, f.name.replace(/\.heic$/i, '.jpg'));
+          const r = await fetch(`/api/shared/${encodeURIComponent(key)}`, { method: 'POST', body: fd, credentials: 'same-origin' });
+          const j = await r.json(); if (!r.ok) throw new Error(j.error || '登録に失敗しました');
+          toast('登録しました'); render('shared', { slot: key });
+        } catch (e) { msg.textContent = e.message; $('shUpload').disabled = false; }
+      });
+      setupSwipe();
+    }
+  }
+  // 写真を長辺 max px に縮小（院内資料用。通信と容量を軽くする）
+  function shrinkPhoto(file, max) {
+    return new Promise((resolve) => {
+      const img = new Image(); const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const r = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * r); c.height = Math.round(img.naturalHeight * r);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        c.toBlob((b) => resolve(b || file), 'image/jpeg', 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  // ---- ポイント獲得表 -------------------------------------------------------------
+  async function pointsPage() {
+    main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button><div class="empty">読み込み中…</div>`;
+    let d;
+    try { d = await api('/api/points/rules'); } catch (e) { main.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    main.innerHTML = `
+      <button class="back" data-go="home">‹ ホームへ戻る</button>
+      <div class="page"><h1 class="page-title">ポイント獲得表</h1><p class="page-lead">現在の保有ポイント <b>${num(d.points)} pt</b>。ポイントはこんな行動で貯まります。</p></div>
+      <ul class="alist pt-list">${Object.entries(d.rules).map(([k, r]) => `<li><span><span class="t">${esc(r.label)}</span><br><span class="m">${esc(r.how)}</span></span><span class="pt-val">+${esc(String(r.points))}<small>pt</small></span></li>`).join('')}</ul>
+      <div class="sec-label">デイリーくじの内訳</div>
+      <ul class="alist"><li><span class="m">${d.lottery.map((t) => `${esc(t.label)} ${t.points}pt`).join('　／　')}</span></li></ul>
+      <div class="sec-label">ランク</div>
+      <ul class="alist"><li><span class="m">${d.ranks.map((r) => `${esc(r.name)} ${num(r.min)}pt〜`).join('　／　')}</span></li></ul>
+      <div class="two" style="margin:14px 14px 0"><button class="btn outline" data-go="thanks">サンクスポイントを贈る</button><button class="btn outline" data-go="referral">リファラル採用</button></div>
+      <p class="lv-note" style="margin:10px 14px 0">サンクスポイントは1回 ${d.thanks.maxPerGift}pt まで、1か月に合計 ${d.thanks.monthlyLimit}pt まで贈れます（今月 ${d.thanks.sentThisMonth}pt 贈りました）。</p>`;
+  }
+
+  // ---- サンクスポイント -------------------------------------------------------------
+  async function thanksPage() {
+    main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button><div class="empty">読み込み中…</div>`;
+    let d;
+    try { d = await api('/api/thanks'); } catch (e) { main.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    const depts = [...new Set(d.directory.map((u) => u.department))];
+    main.innerHTML = `
+      <button class="back" data-go="home">‹ ホームへ戻る</button>
+      <div class="page"><h1 class="page-title">サンクスポイント</h1><p class="page-lead">「ありがとう」の気持ちをポイントに添えて贈れます。贈ったポイントは自分の保有ポイントから相手に移ります。</p></div>
+      <div class="card"><div class="lv-grid" style="grid-template-columns:repeat(3,1fr)"><div><span class="k">保有</span><b>${num(d.points)}pt</b></div><div><span class="k">今月贈った</span><b>${d.status.sentThisMonth}pt</b></div><div class="hi"><span class="k">今月あと</span><b>${d.status.monthlyLimit - d.status.sentThisMonth}pt</b></div></div></div>
+      <div class="form"><h3>贈る</h3>
+        <label>相手</label><input id="thSearch" placeholder="名前・部門で絞り込み" style="margin-bottom:6px"><select id="thTo" size="6" style="font:inherit;width:100%;border:1px solid var(--line);border-radius:8px;padding:6px">${depts.map((dep) => `<optgroup label="${esc(dep)}">${d.directory.filter((u) => u.department === dep).map((u) => `<option value="${u.id}" data-search="${esc(u.name + u.kana + u.department + u.section)}">${esc(u.name)}${u.section ? `（${esc(u.section)}）` : ''}</option>`).join('')}</optgroup>`).join('')}</select>
+        <div class="grid2"><div><label>ポイント（1〜${d.status.maxPerGift}）</label><input id="thPts" type="number" min="1" max="${d.status.maxPerGift}" value="10" inputmode="numeric"></div><div><label>&nbsp;</label><div class="th-quick"><button data-thq="5">5</button><button data-thq="10">10</button><button data-thq="30">30</button><button data-thq="50">50</button></div></div></div>
+        <label>ひとことメッセージ</label><input id="thMsg" maxlength="200" placeholder="例：先日のフォローありがとうございました！">
+        <div class="row"><button class="btn" id="thSend">贈る</button></div><div class="msg" id="thMsgBox"></div>
+      </div>
+      <div class="sec-label">受け取ったサンクス（${d.received.length}件）</div>
+      <ul class="alist th-list">${d.received.map((t) => `<li><span><span class="t">${esc(t.fromName)}<span class="m">　${esc(t.fromDept)}</span></span><br><span class="m">${esc(t.message)}</span><br><span class="m" style="opacity:.7">${fmtDate(t.createdAt, true)}</span></span><span class="pt-val">+${t.points}<small>pt</small></span></li>`).join('') || '<li class="empty">まだありません</li>'}</ul>
+      <details class="dp-hist"><summary>贈ったサンクス（${d.sent.length}件）</summary><ul class="alist">${d.sent.map((t) => `<li><span><span class="t">${esc(t.toName)} さんへ</span><br><span class="m">${esc(t.message)}　${fmtDate(t.createdAt)}</span></span><span class="pt-val" style="color:var(--muted)">-${t.points}<small>pt</small></span></li>`).join('') || '<li class="empty">なし</li>'}</ul></details>
+      <details class="dp-hist"><summary>みんなのサンクス（最近20件）</summary><ul class="alist">${d.recent.map((t) => `<li><span><span class="t">${esc(t.fromName)} → ${esc(t.toName)}</span><br><span class="m">${esc(t.message)}　${fmtDate(t.createdAt)}</span></span><span class="pt-val">+${t.points}</span></li>`).join('')}</ul></details>`;
+    $('thSearch').addEventListener('input', () => { const q = $('thSearch').value.trim(); document.querySelectorAll('#thTo option').forEach((o) => { o.hidden = !!q && !o.dataset.search.includes(q); }); });
+    document.querySelectorAll('[data-thq]').forEach((b) => b.addEventListener('click', () => { $('thPts').value = b.dataset.thq; }));
+    $('thSend').addEventListener('click', async () => {
+      const msg = $('thMsgBox'); msg.className = 'msg';
+      const toId = $('thTo').value; if (!toId) { msg.textContent = '相手を選択してください'; return; }
+      const name = $('thTo').selectedOptions[0].textContent;
+      if (!confirm(`${name} に ${$('thPts').value}pt を贈ります。よろしいですか？`)) return;
+      $('thSend').disabled = true;
+      try { const r = await api('/api/thanks', { method: 'POST', body: JSON.stringify({ toId: Number(toId), points: Number($('thPts').value), message: $('thMsg').value }) }); state.status = r.status; toast(`${name} に贈りました`); render('thanks'); }
+      catch (e) { msg.textContent = e.message; $('thSend').disabled = false; }
+    });
+  }
+
+  // ---- リファラル採用 -------------------------------------------------------------
+  async function referralPage() {
+    main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button><div class="empty">読み込み中…</div>`;
+    let d;
+    try { d = await api('/api/referrals'); } catch (e) { main.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    const st = (r) => `<span class="tag ${{ pending: 'st-pending', referred: 'st-approved', hired: 'st-approved', rejected: 'st-rejected' }[r.status]}">${esc(r.statusLabel)}</span>`;
+    main.innerHTML = `
+      <button class="back" data-go="home">‹ ホームへ戻る</button>
+      <div class="page"><h1 class="page-title">リファラル採用</h1><p class="page-lead">知人・友人を当院に紹介してください。事務部の承認で <b>紹介 +${num(d.rules.referral)}pt</b>、採用が決まったら <b>+${num(d.rules.hired)}pt</b> が付与されます。</p></div>
+      <div class="card rf-card">
+        <div class="t" style="font-weight:800;margin-bottom:6px">制度のご案内</div>
+        <ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
+          <li>下のフォームから紹介する方の情報を申請します</li>
+          <li>事務部が確認し、紹介ポイント <b>${num(d.rules.referral)}pt</b> を付与します</li>
+          <li>面接・採用の手続きは事務部が行います</li>
+          <li>採用が決まり入職したら、採用ポイント <b>${num(d.rules.hired)}pt</b> を付与します</li>
+        </ol>
+        <p class="lv-note" style="margin-top:8px">※ 紹介する方には、事前に当院への応募の意思を確認してください。※ ポイントの付与はいずれも事務部の承認後です。</p>
+      </div>
+      <div class="form"><h3>紹介を申請する</h3>
+        <div class="grid2"><div><label>紹介する方のお名前</label><input id="rfName" maxlength="60"></div><div><label>希望職種</label><input id="rfJob" maxlength="60" placeholder="例：看護師、事務"></div></div>
+        <div class="grid2"><div><label>ご関係</label><input id="rfRel" maxlength="60" placeholder="例：前職の同僚、友人"></div></div>
+        <label>補足（連絡先の有無、応募時期など）</label><textarea id="rfNote" style="min-height:70px"></textarea>
+        <div class="row"><button class="btn" id="rfSend">申請する</button></div><div class="msg" id="rfMsg"></div>
+      </div>
+      <div class="sec-label">自分の申請（${d.mine.length}件）</div>
+      <ul class="alist">${d.mine.map((r) => `<li><span>${st(r)} <span class="t">${esc(r.candidateName)} さん</span><br><span class="m">${esc(r.job)}${r.relation ? `　${esc(r.relation)}` : ''}　申請 ${fmtDate(r.createdAt)}${r.deciderName ? `　${esc(r.deciderName)}` : ''}${r.rejectReason ? `<br><span class="rej">${esc(r.rejectReason)}</span>` : ''}</span></span></li>`).join('') || '<li class="empty">まだ申請はありません</li>'}</ul>
+      ${state.user.isAdmin ? `<div class="sec-label">全職員の申請（事務部用・承認待ち ${d.pending}件）</div>
+      <ul class="alist lv-list">${d.all.map((r) => `<li class="${r.status === 'pending' ? 'hl-alert' : ''}"><span>${st(r)} <span class="t">${esc(r.candidateName)} さん</span><span class="m">　${esc(r.job)}</span><br><span class="m">申請者：${esc(r.userName)}（${esc(r.department)}）　${esc(r.relation)}　${fmtDate(r.createdAt)}${r.note ? `<br>${esc(r.note)}` : ''}</span></span>
+        <span class="ops">${r.status === 'pending' ? `<button class="on" data-rfact="approve" data-id="${r.id}">紹介を承認</button><button class="del" data-rfact="reject" data-id="${r.id}">却下</button>` : r.status === 'referred' ? `<button class="on" data-rfact="hire" data-id="${r.id}">採用を承認</button><button class="del" data-rfact="reject" data-id="${r.id}">却下</button>` : ''}</span></li>`).join('') || '<li class="empty">なし</li>'}</ul>` : ''}`;
+    $('rfSend').addEventListener('click', async () => {
+      const msg = $('rfMsg'); msg.className = 'msg'; $('rfSend').disabled = true;
+      try { await api('/api/referrals', { method: 'POST', body: JSON.stringify({ candidateName: $('rfName').value, job: $('rfJob').value, relation: $('rfRel').value, note: $('rfNote').value }) }); toast('申請しました。事務部が確認します'); render('referral'); }
+      catch (e) { msg.textContent = e.message; $('rfSend').disabled = false; }
+    });
+  }
+
+  // ---- お知らせの投稿（全職員）-----------------------------------------------------
+  function noticeNewPage() {
+    const u = state.user;
+    main.innerHTML = `
+      <button class="back" data-go="notices">‹ お知らせへ戻る</button>
+      <div class="page"><h1 class="page-title">お知らせを投稿する</h1><p class="page-lead">${u.isAdmin ? '投稿すると全職員（部門別は該当部門）に表示されます。' : `「一般」は全職員に、「部門別」は${esc(u.department)}の職員に表示されます。通知は送られません。`}</p></div>
+      <div class="form">
+        <label>区分</label><select id="nnCat"><option value="general">一般（全職員）</option><option value="department">部門別（${esc(u.department)}）</option>${u.isAdmin ? '<option value="important">重要（全職員・赤バナー）</option>' : ''}</select>
+        <label>タイトル</label><input id="nnTitle" maxlength="80" placeholder="例：11月の健康フェス お礼">
+        <label>本文</label><textarea id="nnBody" style="min-height:140px"></textarea>
+        <label>添付ファイル（PDF・Excel・Word・画像、5つまで）</label><input id="nnFiles" type="file" multiple accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg">
+        ${u.isAdmin ? '<div class="row"><label class="check"><input type="checkbox" id="nnPush">プッシュ通知も送る</label></div>' : ''}
+        <div class="row"><button class="btn" id="nnPost">投稿する</button></div><div class="msg" id="nnMsg"></div>
+      </div>`;
+    $('nnPost').addEventListener('click', async () => {
+      const msg = $('nnMsg'); msg.className = 'msg'; $('nnPost').disabled = true;
+      const fd = new FormData();
+      fd.append('title', $('nnTitle').value); fd.append('body', $('nnBody').value); fd.append('category', $('nnCat').value); fd.append('department', u.department); fd.append('push', $('nnPush') && $('nnPush').checked ? '1' : '0');
+      [...$('nnFiles').files].slice(0, 5).forEach((f) => fd.append('files', f));
+      try {
+        const res = await fetch('/api/notices', { method: 'POST', body: fd }); const r = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(r.error || '投稿に失敗しました');
+        toast('投稿しました'); await refresh(); render('notices');
+      } catch (e) { msg.textContent = e.message; $('nnPost').disabled = false; }
+    });
+  }
+
   // ---- 休暇（職員用）-------------------------------------------------------------
+  function leaveSoonPage() {
+    main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button>
+      <div class="page"><h1 class="page-title">休暇届</h1><p class="page-lead">ポータルでの休暇申請は準備中です。</p></div>
+      <div class="empty"><img src="/img/wanko/makasete.png" alt="">当面は、これまでどおりクロノスから申請してください。<br>ポータルでの申請を始めるときは、お知らせでご案内します。</div>`;
+  }
   async function leavePage() {
+    if (!LEAVE_READY) { leaveSoonPage(); return; }
     main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button><div class="page"><h1 class="page-title">休暇</h1><p class="page-lead">読み込み中…</p></div>`;
     let lv;
     try { lv = await api(`/api/leave/me${state.leaveFy ? `?fy=${state.leaveFy}` : ''}`); state.leave = lv; }
@@ -1203,6 +1508,7 @@
 
   // ---- 休暇の承認（課長・部長）------------------------------------------------------
   async function approvePage() {
+    if (!LEAVE_READY) { leaveSoonPage(); return; }
     if (!state.user.isApprover) { render('home'); return; }
     main.innerHTML = `<button class="back" data-go="home">‹ ホームへ戻る</button><div class="page"><h1 class="page-title">休暇の承認</h1><p class="page-lead">読み込み中…</p></div>`;
     let d;
@@ -1231,17 +1537,20 @@
     main.innerHTML = `
       <div class="page">
         <h1 class="page-title">マイページ</h1>
-        <div class="profile"><div class="avatar" role="img" aria-label="かのいわんこ"></div><div><div class="n">${esc(u.name)}</div><div class="s">職員番号 ${esc(u.staffId)}　${esc(st.rank)} ランク　${num(st.points)} pt</div></div></div>
+        <div class="profile"><button class="avatar av-btn" id="avBtn" aria-label="プロフィール画像を変更" ${u.avatarUrl ? `style="background-image:url('${esc(u.avatarUrl)}')"` : ''}><span class="av-edit">変更</span></button><input id="avFile" type="file" accept="image/*" class="hidden"><div><div class="n">${esc(u.name)}</div><div class="s">職員番号 ${esc(u.staffId)}　${esc(st.rank)} ランク　${num(st.points)} pt</div></div></div>
         <dl class="kv"><dt>部門</dt><dd>${esc(u.department || '未設定')}${u.section ? `　${esc(u.section)}` : ''}</dd><dt>職種</dt><dd>${esc(u.job || '未設定')}</dd><dt>役職</dt><dd>${esc(u.roleLabel)}</dd><dt>入職日</dt><dd>${u.hireDate ? fmtDate(u.hireDate) : '未登録（事務部へ）'}</dd><dt>権限</dt><dd>${u.isAdmin ? '管理者' : '一般'}</dd></dl>
         <section class="sec" style="margin:8px 0 18px"><h3>休暇・体調</h3><ul class="clist">
-          <li><button data-go="leave"><span class="t">年休の残数・休暇の申請</span>${chev}</button></li>
-          ${u.isApprover ? `<li><button data-go="approve"><span class="t">休暇の承認（承認待ち ${u.pendingApprovals}件）</span>${chev}</button></li>` : ''}
+          ${LEAVE_READY ? `<li><button data-go="leave"><span class="t">年休の残数・休暇の申請</span>${chev}</button></li>
+          ${u.isApprover ? `<li><button data-go="approve"><span class="t">休暇の承認（承認待ち ${u.pendingApprovals}件）</span>${chev}</button></li>` : ''}` : `<li><button data-soon="1"><span class="t">休暇届<span class="m">　準備中</span></span>${chev}</button></li>`}
           <li><button data-go="healthReport"><span class="t">本日の体調報告・履歴（直近2か月）</span>${chev}</button></li>
           ${u.isHealthViewer ? `<li><button data-go="health"><span class="t">体調報告の確認（未確認 ${u.healthUnconfirmed}件）</span>${chev}</button></li>` : ''}
           ${u.canSendAlerts ? `<li><button data-go="alerts"><span class="t">緊急連絡・安否確認の送信と集計</span>${chev}</button></li>` : ''}
-          <li><button data-go="dept"><span class="t">部署ごとのページ（朝礼・シフト・担当表）</span>${chev}</button></li>
+          <li><button data-go="dept"><span class="t">部署ごとのページ（掲示板・シフト表・情報共有）</span>${chev}</button></li>
           <li><button data-go="training"><span class="t">研修資料・受講記録</span>${chev}</button></li>
           <li><button data-go="surveys"><span class="t">アンケート${u.openSurveys ? `（未回答 ${u.openSurveys}件）` : ''}${u.canCreateSurveys ? '・作成' : ''}</span>${chev}</button></li>
+          <li><button data-go="points"><span class="t">ポイント獲得表</span>${chev}</button></li>
+          <li><button data-go="thanks"><span class="t">サンクスポイント</span>${chev}</button></li>
+          <li><button data-go="referral"><span class="t">リファラル採用${state.user.isAdmin ? '（承認）' : ''}</span>${chev}</button></li>
           <li><button data-go="schedule"><span class="t">スケジュール</span>${chev}</button></li>
           <li><button data-go="schedGroups"><span class="t">スケジュールのグループ管理</span>${chev}</button></li>
         </ul></section>
@@ -1275,7 +1584,7 @@
       const { history, week } = await api('/api/points/history');
       const hist = $('hist'), wk = $('week');
       if (!hist) return;
-      hist.innerHTML = history.map((h) => `<li><span><span>${esc(KIND_LABEL[h.kind] || h.kind)}${h.note ? `（${esc(h.note)}）` : ''}</span><br><span class="d">${fmtDate(h.createdAt, true)}</span></span><span class="p">+${num(h.points)} pt</span></li>`).join('') || '<li class="empty">まだ履歴はありません</li>';
+      hist.innerHTML = history.map((h) => `<li><span><span>${esc(KIND_LABEL[h.kind] || h.kind)}${h.note ? `（${esc(h.note)}）` : ''}</span><br><span class="d">${fmtDate(h.createdAt, true)}</span></span><span class="p" ${h.points < 0 ? 'style="color:var(--important)"' : ''}>${h.points < 0 ? '' : '+'}${num(h.points)} pt</span></li>`).join('') || '<li class="empty">まだ履歴はありません</li>';
       const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return d; });
       const map = Object.fromEntries(week.map((w) => [w.day, w.steps]));
       const max = Math.max(state.rules.stepsGoal, ...week.map((w) => w.steps), 1);
@@ -1285,6 +1594,23 @@
         return `<div class="${v >= state.rules.stepsGoal ? 'goal' : ''}" style="height:${Math.max(3, Math.round((v / max) * 60))}px" title="${num(v)}歩"><span>${d.getMonth() + 1}/${d.getDate()}</span></div>`;
       }).join('');
     } catch (_) { /* 履歴はなくても画面は使える */ }
+    $('avBtn').addEventListener('click', () => {
+      if (!state.user.avatarUrl) { $('avFile').click(); return; }
+      choiceSheet('プロフィール画像', [{ v: 'change', l: '別の画像にする' }, { v: 'reset', l: '元のアイコンに戻す' }]).then(async (v) => {
+        if (v === 'change') $('avFile').click();
+        if (v === 'reset') { try { const r = await api('/api/me/avatar', { method: 'DELETE' }); state.user = r.user; toast('元のアイコンに戻しました'); render('mypage'); } catch (e) { toast(e.message); } }
+      });
+    });
+    $('avFile').addEventListener('change', async () => {
+      const f = $('avFile').files[0]; if (!f) return;
+      try {
+        const blob = await shrinkImage(f, 256);
+        const fd = new FormData(); fd.append('file', blob, 'avatar.jpg');
+        const r = await fetch('/api/me/avatar', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error || '更新に失敗しました');
+        state.user = j.user; toast('プロフィール画像を変更しました'); render('mypage');
+      } catch (e) { toast(e.message); }
+    });
   }
 
   async function renderPushPanel() {
@@ -1371,21 +1697,27 @@
     $('staffBody').innerHTML = `
       <div class="stats">
         <div><b>${s.users}</b>登録職員</div><div><b>${s.subscribedUsers}</b>通知ONの職員</div><div><b>${s.subscriptions}</b>通知ONの端末</div>
-        <div><b>${s.checkinsToday}</b>本日の出社ポイント</div><div><b>${num(s.pointsTotal)}</b>発行ポイント合計</div>
+        <div><b>${s.checkinsToday}</b>本日の体調報告ポイント</div><div><b>${num(s.pointsTotal)}</b>発行ポイント合計</div>
       </div>
       <div class="form" style="margin-top:14px"><h3>体調報告のCSV出力（期間指定）</h3>
-        <div class="row" style="margin-top:0"><input id="hcFrom" type="date" value="${new Date().toISOString().slice(0, 8)}01" style="width:auto"><span>〜</span><input id="hcTo" type="date" value="${new Date().toISOString().slice(0, 10)}" style="width:auto"><a class="btn outline" id="hcBtn" href="#" download>CSVを出力</a></div>
-        <p class="page-lead" style="margin:8px 0 0">全部門の報告（体温・症状・その他・確認者）を出力します。本日の一覧確認は <button class="link" data-go="health">体調報告の確認</button> から。</p>
+        <div class="row" style="margin-top:0"><input id="hcFrom" type="date" value="${new Date().toISOString().slice(0, 8)}01" style="width:auto"><span>〜</span><input id="hcTo" type="date" value="${new Date().toISOString().slice(0, 10)}" style="width:auto"><a class="btn outline" id="hcBtn" href="#" download>CSVを出力</a><a class="btn outline" id="hxBtn" href="#" download>Excel（部署ごと）</a></div>
+        <p class="page-lead" style="margin:8px 0 0">全部門の報告（体温・症状・その他・確認者）を出力します。Excel は「全体」＋部署ごとのシートに分かれ、スプレッドシートにそのまま取り込めます。本日の一覧確認は <button class="link" data-go="health">体調報告の確認</button> から。</p>
+      </div>
+      <div class="form" style="margin-top:14px"><h3>メッセージ送信履歴（CSV）</h3>
+        <div class="row" style="margin-top:0"><input id="mcFrom" type="date" value="${new Date().toISOString().slice(0, 8)}01" style="width:auto"><span>〜</span><input id="mcTo" type="date" value="${new Date().toISOString().slice(0, 10)}" style="width:auto"><a class="btn outline" id="mcBtn" href="#" download>CSVを出力</a></div>
+        <p class="page-lead" style="margin:8px 0 0">部門・課・グループ・個人のすべてのやり取り（日時・会話・送信者・本文）を出力します。Excel やスプレッドシートに貼り付けて蓄積できます。</p>
       </div>
       <div class="form" style="margin-top:14px"><h3>ポイントのルール（seed.js の POINT_RULES）</h3>
         <ul class="clist"><li style="padding:10px 14px;font-size:13px;display:block">
-          出社ポイント +${state.rules.checkin}pt／日　・　目標歩数 ${num(state.rules.stepsGoal)} 歩で +${state.rules.stepsBonus}pt／日<br>
+          体調報告 +${state.rules.checkin}pt／日（旧・出社ポイント）<br>
           くじ：${state.rules.lottery.map((t) => `${t.label} ${t.points}pt`).join('、')}<br>
           ランク：${state.rules.ranks.map((r) => `${r.name} ${num(r.min)}pt〜`).join('、')}
         </li></ul>
       </div>`;
-    const syncCsv = () => { $('hcBtn').href = `/api/admin/health/export.csv?from=${$('hcFrom').value}&to=${$('hcTo').value}`; };
+    const syncCsv = () => { $('hcBtn').href = `/api/admin/health/export.csv?from=${$('hcFrom').value}&to=${$('hcTo').value}`; $('hxBtn').href = `/api/admin/health/export.xlsx?from=${$('hcFrom').value}&to=${$('hcTo').value}`; };
     $('hcFrom').addEventListener('change', syncCsv); $('hcTo').addEventListener('change', syncCsv); syncCsv();
+    const syncMsgCsv = () => { $('mcBtn').href = `/api/admin/messages/export.csv?from=${$('mcFrom').value}&to=${$('mcTo').value}`; };
+    $('mcFrom').addEventListener('change', syncMsgCsv); $('mcTo').addEventListener('change', syncMsgCsv); syncMsgCsv();
   }
 
   function staffNotices() {
@@ -1570,9 +1902,9 @@
     const d0 = staffData.departments[0];
     $('staffBody').innerHTML = `
       <div class="form"><h3>職員を登録する</h3>
-        <p class="page-lead" style="margin:0">初期パスワードは職員番号と同じです（例：4531 → 4531）。先頭の0は付けません。本人は初回ログイン時に数字4桁のパスワードを設定します。退職時は削除すると通知も止まります。</p>
+        <p class="page-lead" style="margin:0">初期パスワードは職員番号と同じです（例：1234 → 1234）。先頭の0は付けません。本人は初回ログイン時に数字4桁のパスワードを設定します。退職時は削除すると通知も止まります。</p>
         <div class="grid2">
-          <div><label>職員番号（先頭の0なし）</label><input id="uStaffId" inputmode="numeric" placeholder="173"></div>
+          <div><label>職員番号（先頭の0なし）</label><input id="uStaffId" inputmode="numeric" placeholder="1234"></div>
           <div><label>部門</label><select id="uDept">${staffData.departments.map((d) => `<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('')}</select></div>
           <div id="uSecWrap" class="${d0 && d0.sections.length ? '' : 'hidden'}"><label>課・病棟</label><select id="uSec"></select></div>
           <div><label>氏名</label><input id="uName" placeholder="山田 花子"></div>
@@ -1637,16 +1969,26 @@
   document.addEventListener('click', async (e) => {
     const a = e.target.closest('a[href^="/?view="]');
     if (a) { const v = new URL(a.href).searchParams.get('view'); if (INTERNAL_VIEWS.includes(v)) { e.preventDefault(); render(v); return; } }
-    const el = e.target.closest('[data-go],[data-notice],[data-content],[data-filter],[data-todo],[data-tab],[data-stab],[data-del-notice],[data-del-content],[data-edit-content],[data-pickup],[data-del-user],[data-reset-pw],[data-lvfy],[data-lvfilter],[data-lvcancel],[data-lvapprove],[data-lvreject],[data-slvfy],[data-lvprofile],[data-lvadjust],[data-hday],[data-hconfirm],[data-emopen],[data-emremind],[data-emclose],[data-emrefresh],[data-dpsel],[data-dpback],[data-dpdel],[data-chat],[data-direct],[data-gremove],[data-gleave],[data-scym],[data-scday],[data-sctoggle],[data-scedit],[data-scpick],[data-scdel],[data-ev],[data-sgedit],[data-sgdel],[data-sgleave],[data-trcat],[data-trdone],[data-trstatus],[data-trdel],[data-trledit],[data-trltoggle],[data-trldel],[data-svres],[data-svstatus],[data-svdel]');
+    const el = e.target.closest('[data-go],[data-notice],[data-content],[data-filter],[data-todo],[data-soon],[data-tab],[data-stab],[data-del-notice],[data-del-content],[data-edit-content],[data-pickup],[data-del-user],[data-reset-pw],[data-ndel],[data-rfact],[data-shared],[data-shdel],[data-lvfy],[data-lvfilter],[data-lvcancel],[data-lvapprove],[data-lvreject],[data-slvfy],[data-lvprofile],[data-lvadjust],[data-hday],[data-hconfirm],[data-emopen],[data-emremind],[data-emclose],[data-emrefresh],[data-dpsel],[data-dpback],[data-dpdel],[data-chat],[data-direct],[data-gremove],[data-gleave],[data-scym],[data-scday],[data-sctoggle],[data-scedit],[data-scpick],[data-scdel],[data-ev],[data-sgedit],[data-sgdel],[data-sgleave],[data-trcat],[data-trdone],[data-trstatus],[data-trdel],[data-trledit],[data-trltoggle],[data-trldel],[data-svres],[data-svstatus],[data-svdel]');
     if (!el) return;
     const d = el.dataset;
     if (d.tab) { if (d.tab === 'dept') state.deptName = null; render(d.tab); return; }
+    if (d.shared) { render('shared', { slot: d.shared }); return; }
+    if (d.shdel) { if (!confirm(`「${d.name}」を削除します。よろしいですか？`)) return; try { await api(`/api/shared/files/${d.shdel}`, { method: 'DELETE' }); toast('削除しました'); render('shared'); } catch (err) { toast(err.message); } return; }
+    if (d.rfact) {
+      let reason = '';
+      if (d.rfact === 'reject') { reason = prompt('却下の理由（本人に通知されます）'); if (reason === null) return; }
+      else if (!confirm(d.rfact === 'approve' ? `紹介を承認し、${num(1000)}pt を付与します。よろしいですか？` : `採用を承認し、${num(5000)}pt を付与します。よろしいですか？`)) return;
+      try { await api(`/api/admin/referrals/${d.id}`, { method: 'POST', body: JSON.stringify({ action: d.rfact, reason }) }); toast('処理しました'); render('referral'); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (d.ndel) { if (!confirm('この投稿を削除しますか？')) return; try { await api(`/api/notices/${d.ndel}`, { method: 'DELETE' }); toast('削除しました'); await refresh(); render('notices'); } catch (err) { toast(err.message); } return; }
     // 研修
     if (d.trcat) { state.trainingCat = d.trcat; render('training'); return; }
     if (d.trledit) { const l = (state.trLinks || []).find((x) => x.id === Number(d.trledit)); if (l && state.trlFill) { $('trLinkEditor').open = true; state.trlFill(l); $('trLinkForm').scrollIntoView({ behavior: 'smooth' }); } return; }
     if (d.trltoggle) { try { await api(`/api/training/links/${d.trltoggle}`, { method: 'PUT', body: JSON.stringify({ active: d.active === '1' }) }); render('training'); } catch (err) { toast(err.message); } return; }
     if (d.trldel) { if (!confirm(`「${d.name}」を削除しますか？`)) return; try { await api(`/api/training/links/${d.trldel}`, { method: 'DELETE' }); toast('削除しました'); render('training'); } catch (err) { toast(err.message); } return; }
-    if (d.trdone) { try { await api(`/api/training/${d.trdone}/done`, { method: 'POST', body: JSON.stringify({ undo: !!d.undo }) }); toast(d.undo ? '受講記録を取り消しました' : '受講を記録しました'); render('training'); } catch (err) { toast(err.message); } return; }
+    if (d.trdone) { try { const r = await api(`/api/training/${d.trdone}/done`, { method: 'POST', body: JSON.stringify({ undo: !!d.undo }) }); toast(d.undo ? '受講記録を取り消しました' : (r.granted ? `受講を記録しました（+${r.granted}pt）` : '受講を記録しました')); render('training'); } catch (err) { toast(err.message); } return; }
     if (d.trstatus) {
       try {
         const r = await api(`/api/training/${d.trstatus}/status`);
@@ -1757,7 +2099,9 @@
       if (c) { state.prevView = state.view === 'detail' ? c.tab : state.view; render('detail', { content: c }); }
       return;
     }
+    if (e.target.closest('figure.embed img')) { window.open(e.target.closest('img').dataset.full || e.target.closest('img').src, '_blank'); return; }
     if (d.todo !== undefined) { e.preventDefault(); toast(`${d.todo}は次の段階で設定します`); return; }
+    if (d.soon) { e.preventDefault(); toast('休暇届は準備中です。当面はクロノスから申請してください'); return; }
     // 管理モード
     if (d.stab) { state.staffTab = d.stab; state.editing = null; staff(); return; }
     if (d.delNotice) { if (confirm('このお知らせを削除しますか？')) { await api(`/api/admin/notices/${d.delNotice}`, { method: 'DELETE' }); staff(); } return; }
@@ -1815,7 +2159,7 @@
     const openSurvey = Number(params.get('survey') || 0);
     if (openSurvey) { history.replaceState(null, '', '/'); render('survey', { id: openSurvey }); return; }
     if (openView === 'schedule') { const dt = params.get('date'); history.replaceState(null, '', '/'); render('schedule', /^\d{4}-\d{2}-\d{2}$/.test(dt || '') ? { date: dt } : {}); return; }
-    if (['leave', 'approve', 'health', 'healthReport', 'messages', 'dept', 'training', 'surveys', 'alerts', 'schedGroups'].includes(openView)) { history.replaceState(null, '', '/'); render(openView); return; }
+    if (['leave', 'approve', 'health', 'healthReport', 'messages', 'dept', 'training', 'surveys', 'alerts', 'schedGroups', 'thanks', 'referral', 'points', 'notices'].includes(openView)) { history.replaceState(null, '', '/'); render(openView); return; }
     if (openId) {
       history.replaceState(null, '', '/');
       const found = n.notices.find((x) => x.id === openId);

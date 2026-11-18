@@ -16,8 +16,11 @@ const messages = require('./messages');
 const schedule = require('./schedule');
 const training = require('./training');
 const surveys = require('./surveys');
+const points = require('./points');
+const shared = require('./shared');
 const multer = require('multer');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 3000;
 const APP_NAME = process.env.APP_NAME || db.HOSPITAL_NAME;
@@ -52,6 +55,8 @@ app.use(
   })
 );
 
+// /docs 配下のPDFは ?dl=1 で「保存」扱いにする（スマホで印刷するため）
+app.use('/docs', (req, res, next) => { if (req.query.dl && /\.pdf$/i.test(req.path)) res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(req.path))}`); next(); });
 // 静的ファイル: 常に最新を取りに行かせる（HTML / SW / JS はキャッシュさせない）
 app.use(
   express.static(path.join(__dirname, 'public'), {
@@ -176,6 +181,7 @@ function userStatus(user) {
 function publicUser(u) {
   return {
     id: u.id, staffId: u.staff_id, name: u.name, kana: u.kana, department: u.department, section: u.section, job: u.job, isAdmin: !!u.is_admin,
+    avatarUrl: u.avatar ? `/api/avatar/${u.id}?v=${encodeURIComponent(u.avatar)}` : '',
     role: u.role || '', roleLabel: leave.ROLES[u.role || ''] || '一般', hireDate: u.hire_date || '', weeklyDays: u.weekly_days || 5,
     mustChangePassword: !!u.must_change_password, passwordChangedAt: u.password_changed_at || '',
     isApprover: leave.isApprover(u), pendingApprovals: leave.pendingCount(u),
@@ -199,11 +205,8 @@ app.post('/api/password', requireLogin, (req, res) => {
 });
 
 // ---- ポイント・くじ・歩数 -----------------------------------------------------
-app.post('/api/points/checkin', requireLogin, (req, res) => {
-  if (db.pointLogToday(req.user.id, 'checkin')) return res.status(409).json({ error: '本日の出社ポイントは取得済みです' });
-  db.addPoints(req.user.id, 'checkin', db.POINT_RULES.checkin, '出社ポイント');
-  res.json({ granted: db.POINT_RULES.checkin, status: userStatus(req.user) });
-});
+// 出社ポイントは廃止。体調報告を送ると同じ枠（kind: checkin）でポイントが付く
+app.post('/api/points/checkin', requireLogin, (req, res) => res.status(410).json({ error: '出社ポイントは体調報告のポイントに変わりました。ホームの「体調報告」から報告してください' }));
 
 app.post('/api/points/lottery', requireLogin, (req, res) => {
   if (db.pointLogToday(req.user.id, 'lottery')) return res.status(409).json({ error: '本日のくじは引き終わっています' });
@@ -220,11 +223,7 @@ app.post('/api/steps', requireLogin, (req, res) => {
   const steps = Math.floor(Number(req.body && req.body.steps));
   if (!Number.isFinite(steps) || steps < 0 || steps > 100000) return res.status(400).json({ error: '歩数は 0〜100000 の数値で入力してください' });
   db.setStepsToday(req.user.id, steps);
-  let granted = 0;
-  if (steps >= db.POINT_RULES.stepsGoal && !db.pointLogToday(req.user.id, 'steps')) {
-    db.addPoints(req.user.id, 'steps', db.POINT_RULES.stepsBonus, `目標歩数 ${db.POINT_RULES.stepsGoal} 歩 達成`);
-    granted = db.POINT_RULES.stepsBonus;
-  }
+  const granted = 0; // 歩数のポイント付与は廃止（記録のみ）
   res.json({ granted, status: userStatus(req.user), week: db.stepsWeek(req.user.id) });
 });
 
@@ -300,18 +299,25 @@ app.get('/api/notices/att/:stored', requireLogin, (req, res) => {
   const fp = path.join(dept.FILES_DIR, name);
   if (!require('fs').existsSync(fp)) return res.status(404).json({ error: 'ファイルが見つかりません' });
   const orig = String(req.query.name || name);
-  res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(orig)}`);
+  res.setHeader('Content-Disposition', `${req.query.dl ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(orig)}`);
   res.sendFile(fp);
 });
-app.post('/api/admin/notices', requireAdmin, (req, res, next) => {
+// お知らせの投稿：管理者は全区分・通知あり。一般職員は「一般」または自部門宛てのみ、通知なし
+const noticeUpload = (req, res, next) => {
   // JSON でも multipart（添付あり）でも受け付ける
   if ((req.headers['content-type'] || '').startsWith('multipart/form-data')) return upload.array('files', 5)(req, res, (err) => (err ? res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'ファイルは 10MB までです' : err.message }) : next()));
   next();
-}, async (req, res) => {
-  const { title, body, category, department } = req.body || {};
-  const push = req.body.push === true || req.body.push === 'true' || req.body.push === '1';
+};
+async function postNotice(req, res) {
+  const isAdminUser = !!req.user.is_admin;
+  let { title, body, category, department } = req.body || {};
+  const push = isAdminUser && (req.body.push === true || req.body.push === 'true' || req.body.push === '1');
   if (!title || !String(title).trim()) return res.status(400).json({ error: 'タイトルを入力してください' });
   if (!CATEGORIES.includes(category)) return res.status(400).json({ error: '区分を選択してください' });
+  if (!isAdminUser) {
+    if (category === 'important') return res.status(403).json({ error: '「重要」のお知らせは管理者のみ投稿できます' });
+    if (category === 'department') department = req.user.department; // 一般職員は自部門宛てのみ
+  }
   if (category === 'department' && !db.TARGETS.includes(department)) return res.status(400).json({ error: '対象部門を選択してください' });
   const attachments = (req.files || []).map((f) => { const name = Buffer.from(f.originalname, 'latin1').toString('utf8'); return { name, url: `/api/notices/att/${f.filename}?name=${encodeURIComponent(name)}` }; });
 
@@ -336,10 +342,20 @@ app.post('/api/admin/notices', requireAdmin, (req, res, next) => {
     });
   }
   res.json({ notice, push: pushResult });
-});
+}
+app.post('/api/admin/notices', requireAdmin, noticeUpload, postNotice);
+app.post('/api/notices', requireLogin, noticeUpload, postNotice); // 全職員の投稿ボタン用
 
 app.delete('/api/admin/notices/:id', requireAdmin, (req, res) => {
   db.deleteNotice(Number(req.params.id));
+  res.json({ ok: true });
+});
+// 自分が投稿したお知らせは本人も削除できる
+app.delete('/api/notices/:id', requireLogin, (req, res) => {
+  const n = db.findNotice(Number(req.params.id));
+  if (!n) return res.status(404).json({ error: 'お知らせが見つかりません' });
+  if (!(req.user.is_admin || n.createdBy === req.user.id)) return res.status(403).json({ error: '自分が投稿したお知らせのみ削除できます' });
+  db.deleteNotice(n.id);
   res.json({ ok: true });
 });
 
@@ -413,7 +429,7 @@ app.post('/api/admin/users', requireAdmin, (req, res) => {
 //  列：職員番号,氏名,ふりがな,部門,課・病棟,職種,役職,入職日,週所定日数,管理者
 //  - 職員番号は先頭の0を取り除いて登録（00173 → 173）
 //  - 役職は「部長／副部長／施設長→部長権限」「課長／副課長→課長権限」「主任→主任権限」、空欄は一般
-//  - ふりがな・氏名のカタカナ（半角含む）はひらがなに変換
+//  - ふりがなのカタカナ（半角含む）はひらがなに変換。氏名は漢字フルネームのまま登録
 //  - 既存の職員番号は更新（氏名・所属・役職など）。パスワードは変更しない
 const toHiragana = (s) => String(s || '').normalize('NFKC').replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60)).trim();
 const ROLE_WORDS = { bucho: ['部長', '副部長', '施設長', '室長', '所長'], kacho: ['課長', '副課長', '師長', '科長'], shunin: ['主任', '副師長', '係長'] };
@@ -452,7 +468,7 @@ app.post('/api/admin/users/import', requireAdmin, (req, res) => {
       const line = idx + 2;
       const staffId = db.normalizeStaffId(get(r, 'staffId'));
       if (!/^\d{1,6}$/.test(staffId)) { result.errors.push(`${line}行目：職員番号「${get(r, 'staffId')}」は数字にしてください`); return; }
-      const name = toHiragana(get(r, 'name')) || '';
+      const name = String(get(r, 'name') || '').normalize('NFKC').replace(/\s+/g, ' ').trim(); // 氏名は漢字フルネームのまま（カナ変換しない）
       if (!name) { result.errors.push(`${line}行目（${staffId}）：氏名が空です`); return; }
       const kana = toHiragana(get(r, 'kana')) || name;
       const department = get(r, 'department') || req.user.department;
@@ -606,6 +622,38 @@ app.post('/api/msg/conversations/:id/messages', requireLogin, loadConv, async (r
   res.json({ message: r.message, push });
 });
 
+// ---- プロフィール画像 -------------------------------------------------------------
+// 端末側で 256px の JPEG に縮小してから送る。保存先は部署ファイルと同じ FILES_DIR
+const avatarUpload = multer({
+  storage: multer.diskStorage({ destination: dept.FILES_DIR, filename: (req, file, cb) => cb(null, `avatar-${req.user.id}-${Date.now()}.jpg`) }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => (/^image\/(jpeg|png|webp)$/.test(file.mimetype) ? cb(null, true) : cb(new Error('画像（JPEG/PNG）を選択してください'))),
+});
+const avatarGet = db.raw.prepare('SELECT avatar FROM users WHERE id = ?');
+const avatarSet = db.raw.prepare('UPDATE users SET avatar = ? WHERE id = ?');
+app.post('/api/me/avatar', requireLogin, (req, res) => {
+  avatarUpload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? '画像は 2MB までです' : err.message });
+    if (!req.file) return res.status(400).json({ error: '画像を選択してください' });
+    const old = avatarGet.get(req.user.id).avatar;
+    avatarSet.run(req.file.filename, req.user.id);
+    if (old) { try { fs.unlinkSync(path.join(dept.FILES_DIR, old)); } catch (_) {} }
+    res.json({ user: publicUser(db.findUserById(req.user.id)) });
+  });
+});
+app.delete('/api/me/avatar', requireLogin, (req, res) => {
+  const old = avatarGet.get(req.user.id).avatar;
+  avatarSet.run('', req.user.id);
+  if (old) { try { fs.unlinkSync(path.join(dept.FILES_DIR, old)); } catch (_) {} }
+  res.json({ user: publicUser(db.findUserById(req.user.id)) });
+});
+app.get('/api/avatar/:id', requireLogin, (req, res) => {
+  const row = avatarGet.get(Number(req.params.id));
+  if (!row || !row.avatar) return res.status(404).end();
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  res.sendFile(path.join(dept.FILES_DIR, row.avatar), (e) => { if (e && !res.headersSent) res.status(404).end(); });
+});
+
 // ---- 部署ページAPI --------------------------------------------------------------
 const upload = multer({
   storage: multer.diskStorage({
@@ -625,13 +673,13 @@ function deptOf(req) {
 app.get('/api/dept', requireLogin, (req, res) => {
   const d = deptOf(req);
   if (!d) return res.status(404).json({ error: 'この部署のページはありません' });
-  res.json({ ...dept.page(d), canEdit: dept.canManageFiles(req.user, d), canEditNote: dept.canEditNote(req.user, d), pages: dept.pageList(), myDepartment: req.user.department, mySection: req.user.section });
+  res.json({ ...dept.page(d), canEdit: dept.canManageFiles(req.user, d), canEditNote: dept.canEditNote(req.user, d), pages: dept.pageList(), myDepartment: req.user.department, mySection: req.user.section, diskAll: req.user.is_admin ? { ...dept.usageAll(), capacity: Number(process.env.DISK_GB || 1) * 1024 * 1024 * 1024 } : null });
 });
 // 朝礼メモ（本日分。その部署の職員なら誰でも更新可）
 app.put('/api/dept/note', requireLogin, (req, res) => {
   const d = deptOf(req);
   if (!d) return res.status(404).json({ error: 'この部署のページはありません' });
-  if (!dept.canEditNote(req.user, d)) return res.status(403).json({ error: '朝礼の入力はその部署の職員のみです' });
+  if (!dept.canEditNote(req.user, d)) return res.status(403).json({ error: '掲示板の入力はその部署の職員のみです' });
   const day = /^\d{4}-\d{2}-\d{2}$/.test(req.body.day || '') ? req.body.day : dept.today();
   res.json({ note: dept.saveNote(d, day, req.body.body, req.user.id) });
 });
@@ -666,6 +714,73 @@ app.delete('/api/dept/files/:id', requireLogin, (req, res) => {
   if (!dept.canManageFiles(req.user, f.department)) return res.status(403).json({ error: '削除は、その部署の課長・主任・部長と管理者のみです' });
   dept.removeFile(f.id);
   res.json({ ok: true });
+});
+
+// ---- 院内資料（お役立ち：食堂メニュー・マニュアル・当直表）-----------------------------------
+app.get('/api/shared', requireLogin, (req, res) => res.json({ slots: shared.summary(), canEdit: shared.canEdit(req.user) }));
+app.get('/api/shared/:slot', requireLogin, (req, res) => {
+  const sl = shared.slot(req.params.slot);
+  if (!sl) return res.status(404).json({ error: '項目が見つかりません' });
+  res.json({ slot: sl, files: shared.list(sl.key), canEdit: shared.canEdit(req.user), storage: shared.canEdit(req.user) ? shared.storage() : null });
+});
+app.post('/api/shared/:slot', requireLogin, (req, res) => {
+  const sl = shared.slot(req.params.slot);
+  if (!sl) return res.status(404).json({ error: '項目が見つかりません' });
+  if (!shared.canEdit(req.user)) return res.status(403).json({ error: '登録は管理者・部長・課長のみです' });
+  upload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'ファイルは 10MB までです' : err.message });
+    if (!req.file) return res.status(400).json({ error: 'ファイルを選択してください' });
+    const r = shared.add({ slot: sl.key, title: req.body.title, origName: Buffer.from(req.file.originalname, 'latin1').toString('utf8'), storedName: req.file.filename, mime: req.file.mimetype, size: req.file.size, userId: req.user.id });
+    if (r.error) { try { fs.unlinkSync(req.file.path); } catch (_) {} return res.status(400).json({ error: r.error }); }
+    res.json(r);
+  });
+});
+app.get('/api/shared/files/:id/download', requireLogin, (req, res) => {
+  const f = shared.find(Number(req.params.id));
+  if (!f) return res.status(404).json({ error: 'ファイルが見つかりません' });
+  res.setHeader('Content-Disposition', `${req.query.dl ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(f.orig_name)}`);
+  res.setHeader('Content-Type', f.mime || 'application/octet-stream');
+  res.sendFile(shared.filePath(f), (e) => { if (e && !res.headersSent) res.status(404).json({ error: 'ファイルが見つかりません' }); });
+});
+app.delete('/api/shared/files/:id', requireLogin, (req, res) => {
+  if (!shared.canEdit(req.user)) return res.status(403).json({ error: '削除は管理者・部長・課長のみです' });
+  if (!shared.remove(Number(req.params.id))) return res.status(404).json({ error: 'ファイルが見つかりません' });
+  res.json({ ok: true });
+});
+
+// ---- ポイント獲得表・サンクスポイント・リファラル ----------------------------------------
+app.get('/api/points/rules', requireLogin, (req, res) => {
+  res.json({ rules: points.RULES, lottery: db.POINT_RULES.lottery, ranks: db.POINT_RULES.ranks, thanks: points.thanksStatus(req.user.id), points: db.pointsTotal(req.user.id) });
+});
+app.get('/api/thanks', requireLogin, (req, res) => {
+  res.json({ status: points.thanksStatus(req.user.id), points: db.pointsTotal(req.user.id), received: points.thanksReceived(req.user.id), sent: points.thanksSent(req.user.id), recent: points.thanksRecent(), directory: messages.directory(req.user) });
+});
+app.post('/api/thanks', requireLogin, async (req, res) => {
+  const b = req.body || {};
+  const r = points.giveThanks(req.user, b.toId, b.points, b.message);
+  if (r.error) return res.status(400).json({ error: r.error });
+  const subs = db.listSubscriptionsByUser(r.to.id);
+  const push = subs.length ? await sendPush(subs, { title: `${req.user.name} さんからサンクスポイント`, body: `+${Number(b.points)}pt「${String(b.message).slice(0, 60)}」`, url: '/?view=thanks', tag: `thanks-${r.id}` }) : null;
+  res.json({ ok: true, status: userStatus(db.findUserById(req.user.id)), push });
+});
+app.get('/api/referrals', requireLogin, (req, res) => {
+  res.json({ rules: { referral: points.RULES.referral.points, hired: points.RULES.hired.points }, mine: points.myReferrals(req.user.id), all: req.user.is_admin ? points.allReferrals() : [], pending: req.user.is_admin ? points.pendingReferrals() : 0 });
+});
+app.post('/api/referrals', requireLogin, async (req, res) => {
+  const r = points.createReferral(req.user, req.body || {});
+  if (r.error) return res.status(400).json({ error: r.error });
+  const subs = db.raw.prepare('SELECT id FROM users WHERE is_admin = 1 AND id <> ?').all(req.user.id).flatMap((a) => db.listSubscriptionsByUser(a.id));
+  if (subs.length) await sendPush(subs, { title: 'リファラル採用の申請', body: `${req.user.name}：${r.referral.candidateName} さんの紹介`, url: '/?view=referral', tag: `referral-${r.referral.id}` });
+  res.json(r);
+});
+app.post('/api/admin/referrals/:id', requireAdmin, async (req, res) => {
+  const { action, reason } = req.body || {};
+  const r = points.decideReferral(req.user, Number(req.params.id), action, reason);
+  if (r.error) return res.status(400).json({ error: r.error });
+  const subs = db.listSubscriptionsByUser(r.referral.userId);
+  const titles = { approve: `紹介が承認されました（+${points.RULES.referral.points}pt）`, hire: `採用が承認されました（+${points.RULES.hired.points}pt）`, reject: '紹介申請が却下されました' };
+  if (subs.length) await sendPush(subs, { title: titles[action], body: `${r.referral.candidateName} さん${action === 'reject' && reason ? `：${String(reason).slice(0, 60)}` : ''}`, url: '/?view=referral', tag: `referral-${r.referral.id}-${action}` });
+  res.json(r);
 });
 
 // ---- 研修ページAPI --------------------------------------------------------------
@@ -709,9 +824,12 @@ app.get('/api/training/:id/download', requireLogin, (req, res) => {
   res.sendFile(path.join(dept.FILES_DIR, t.stored_name));
 });
 app.post('/api/training/:id/done', requireLogin, (req, res) => {
-  if (!training.find(Number(req.params.id))) return res.status(404).json({ error: '見つかりません' });
-  training.markDone(Number(req.params.id), req.user.id, !(req.body && req.body.undo));
-  res.json({ ok: true });
+  const t = training.find(Number(req.params.id));
+  if (!t) return res.status(404).json({ error: '見つかりません' });
+  const undo = !!(req.body && req.body.undo);
+  training.markDone(t.id, req.user.id, !undo);
+  const granted = undo ? 0 : points.grantOnce(req.user.id, 'training', points.RULES.training.points, `研修：${t.title}`);
+  res.json({ ok: true, granted });
 });
 app.get('/api/training/:id/status', requireLogin, (req, res) => {
   if (!training.canEdit(req.user)) return res.status(403).json({ error: '受講状況の閲覧は権限のある職員のみです' });
@@ -750,7 +868,8 @@ app.post('/api/surveys/:id/answer', requireLogin, (req, res) => {
   if (!s) return res.status(404).json({ error: 'アンケートが見つかりません' });
   const r = surveys.answer(req.user, s, req.body);
   if (r.error) return res.status(400).json({ error: r.error });
-  res.json(r);
+  const granted = points.grantOnce(req.user.id, 'survey', points.RULES.survey.points, `アンケート：${s.title}`);
+  res.json({ ...r, granted });
 });
 app.get('/api/surveys/:id/results', requireLogin, (req, res) => {
   const s = surveys.find(Number(req.params.id));
@@ -878,12 +997,15 @@ app.post('/api/health/report', requireLogin, async (req, res) => {
   if (v.error) return res.status(400).json({ error: v.error });
   const r = health.save(req.user, v.value);
   if (r.error) return res.status(400).json({ error: r.error });
+  // 1日1回、体調報告でポイント（旧・出社ポイントの枠）
+  let granted = 0;
+  if (!db.pointLogToday(req.user.id, 'checkin')) { db.addPoints(req.user.id, 'checkin', db.POINT_RULES.checkin, '体調報告'); granted = db.POINT_RULES.checkin; }
   let push = null;
   if (r.report.alert && r.isNew) {
     const subs = health.leadersFor(req.user).flatMap((l) => db.listSubscriptionsByUser(l.id));
     if (subs.length) push = await sendPush(subs, { title: '体調報告：要注意', body: `${req.user.name}：${fmtHealth(r.report)}`, url: '/?view=health', tag: `health-${r.report.id}` });
   }
-  res.json({ report: r.report, push });
+  res.json({ report: r.report, push, granted, status: userStatus(req.user) });
 });
 
 // 所属長・主任向け一覧（日付指定、既定は本日）
@@ -910,6 +1032,49 @@ app.get('/api/admin/health/export.csv', requireAdmin, (req, res) => {
   const csv = '﻿' + [head, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="health_${from}_${to}.csv"`);
+  res.send(csv);
+});
+
+// 体調報告 Excel（部署ごとにシートを分ける。スプレッドシートに取り込みやすい形）
+app.get('/api/admin/health/export.xlsx', requireAdmin, async (req, res) => {
+  const { from, to } = req.query;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '') || to < from) return res.status(400).json({ error: '期間は YYYY-MM-DD で、開始≦終了にしてください' });
+  const ExcelJS = require('exceljs');
+  const wb = new ExcelJS.Workbook(); wb.creator = '職員ポータル';
+  const head = ['日付', '職員番号', '氏名', '部門', '課・病棟', '体温', ...health.SYMPTOMS.map((s) => s.label), 'その他', '要注意', '報告時刻', '確認者', '確認日時'];
+  const rows = health.listRange(from, to);
+  const byDept = new Map();
+  for (const r of rows) { if (!byDept.has(r.department)) byDept.set(r.department, []); byDept.get(r.department).push(r); }
+  const safe = (n) => String(n || '（未設定）').replace(/[\\/?*\[\]:]/g, '_').slice(0, 31);
+  const addSheet = (name, list) => {
+    const ws = wb.addWorksheet(safe(name), { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.addRow(head); ws.getRow(1).font = { bold: true }; ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EEF7' } };
+    for (const r of list) ws.addRow([r.day, r.staffId, r.userName, r.department, r.section, r.temperature != null ? Number(r.temperature.toFixed(1)) : '', ...health.SYMPTOMS.map((s) => (r.flags[s.key] ? '有' : '')), r.other, r.alert ? '●' : '', r.updatedAt.slice(11, 16), r.confirmerName, r.confirmedAt]);
+    ws.columns.forEach((c, i) => { c.width = i === 2 ? 14 : i === 3 || i === 4 ? 16 : i === head.length - 5 ? 24 : 10; });
+    ws.autoFilter = { from: 'A1', to: `${String.fromCharCode(64 + head.length)}1` };
+  };
+  addSheet('全体', rows);
+  for (const d of db.DEPARTMENTS) if (byDept.has(d.name)) addSheet(d.name, byDept.get(d.name));
+  for (const [name, list] of byDept) if (!db.DEPARTMENTS.some((d) => d.name === name)) addSheet(name, list);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="health_${from}_${to}.xlsx"`);
+  await wb.xlsx.write(res); res.end();
+});
+
+// メッセージ送信履歴CSV（管理者・期間指定）。Excel/スプレッドシートにそのまま貼れる
+app.get('/api/admin/messages/export.csv', requireAdmin, (req, res) => {
+  const { from, to } = req.query;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '') || to < from) return res.status(400).json({ error: '期間は YYYY-MM-DD で、開始≦終了にしてください' });
+  const TYPE = { direct: '個人', department: '部門', section: '課・病棟', group: 'グループ' };
+  const rows = db.raw.prepare(`SELECT m.id, m.created_at, c.type, c.name, c.department, c.section, c.key, u.staff_id, u.name AS userName, u.department AS userDept, m.body
+      FROM messages m JOIN conversations c ON c.id = m.conv_id LEFT JOIN users u ON u.id = m.user_id
+      WHERE date(m.created_at) BETWEEN ? AND ? ORDER BY m.id`).all(from, to);
+  const convName = (r) => r.type === 'direct' ? '個人メッセージ' : r.type === 'department' ? r.department : r.type === 'section' ? `${r.department} ${r.section}` : r.name;
+  const head = ['日時', '種別', '会話', '送信者 職員番号', '送信者', '送信者 部門', '本文', 'メッセージID'];
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = '\ufeff' + [head, ...rows.map((r) => [r.created_at, TYPE[r.type] || r.type, convName(r), r.staff_id, r.userName || '（退職・削除）', r.userDept, r.body, r.id])].map((row) => row.map(cell).join(',')).join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="messages_${from}_${to}.csv"`);
   res.send(csv);
 });
 
